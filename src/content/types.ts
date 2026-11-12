@@ -13,6 +13,17 @@ export type StatusEffectDef =
   | { type: 'burn'; dmg: number; ticks: number }
   | { type: 'knockback'; ticks: number };
 
+/** What a unit does besides walking. Distances fixed-point, durations in ticks. */
+export type UnitAbilityDef =
+  /** Shoots structures while walking; optionally slows the fire rate of what it hits. */
+  | { type: 'ranged'; range: number; cooldown: number; damage: number; targets: 'towers' | 'structures'; jamPct?: number; jamTicks?: number }
+  /** Damages every structure orthogonally adjacent to it as it passes. */
+  | { type: 'trample'; cooldown: number; damage: number }
+  /** Walks through walls and towers by destroying whatever blocks its straightest route. */
+  | { type: 'breach'; cooldown: number; damage: number }
+  /** Restores health to nearby allies. */
+  | { type: 'heal'; range: number; cooldown: number; amount: number };
+
 export interface TowerTierDef {
   /** Build cost for tier 0, upgrade cost for later tiers. */
   cost: number;
@@ -36,6 +47,8 @@ export interface TowerDef {
   projectileSpeed: number;
   minRange?: number;
   hitsFlying: boolean;
+  /** Health at tier 0; each tier adds 40 %. */
+  hp: number;
   /** Damage multiplier against flying units, in percent. */
   vsFlyingPct?: number;
   color: number;
@@ -46,6 +59,11 @@ export interface WallDef {
   name: string;
   cost: number;
   color: number;
+  hp: number;
+  /** Slows ground units standing next to the wall, in percent. */
+  slowAuraPct?: number;
+  /** Burn applied to any unit that damages the wall. */
+  thorns?: { dmg: number; ticks: number };
 }
 
 export interface UnitDef {
@@ -63,6 +81,7 @@ export interface UnitDef {
   flying: boolean;
   /** How many bodies one wave entry spawns. */
   swarm: number;
+  ability?: UnitAbilityDef;
 }
 
 export interface FactionDef {

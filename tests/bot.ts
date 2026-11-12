@@ -1,6 +1,6 @@
 import { content } from '../src/content';
 import type { FactionId } from '../src/content';
-import { checkPlace, createState, hashState, step, upgradeCost, WALL, type Command, type GameState } from '../src/core';
+import { checkPlace, createState, hashState, repairCost, step, upgradeCost, WALL, type Command, type GameState } from '../src/core';
 
 export interface BotRun {
   state: GameState;
@@ -16,6 +16,15 @@ function botCommands(state: GameState): Command[] {
   const towers = state.content.factions[state.player.faction].towers;
   let supplies = state.player.supplies;
   const wallCost = state.content.factions[state.player.faction].wall.cost;
+
+  // Patch up anything damaged first.
+  for (const s of state.structures) {
+    const cost = repairCost(state, s.cell);
+    if (cost > 0 && supplies >= cost) {
+      cmds.push({ type: 'repairStructure', cell: s.cell });
+      supplies -= cost;
+    }
+  }
 
   // Zig-zag: every third row is a wall line with a gap alternating left/right.
   let built = 0;

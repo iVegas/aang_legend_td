@@ -1,6 +1,6 @@
 import { content, type FactionId, type TargetingMode } from '../content';
 import {
-  checkPlace, ONE, sellValue, starsFor, structureAt, structureCost, TARGETING_MODES, TICKS_PER_SECOND, upgradeCost, WALL,
+  checkPlace, ONE, repairCost, sellValue, starsFor, structureAt, structureCost, TARGETING_MODES, TICKS_PER_SECOND, upgradeCost, WALL,
   type PlaceError, type SimEvent,
 } from '../core';
 import * as api from '../platform/api';
@@ -189,6 +189,12 @@ function onSimEvent(e: SimEvent): void {
     case 'placed': play('place'); break;
     case 'sold': play('sell'); break;
     case 'upgraded': play('upgrade'); break;
+    case 'repaired': play('upgrade'); break;
+    case 'unitShot': play('shot'); break;
+    case 'destroyed':
+      play('leak');
+      navigator.vibrate?.(25);
+      break;
     case 'shot': play('shot'); break;
     case 'pulse': play('pulse'); break;
     case 'chain': play('zap'); break;
@@ -272,6 +278,10 @@ function publishHud(): void {
       upgradeCost: cost,
       canUpgrade: cost !== null && state.player.supplies >= cost,
       sellValue: sellValue(state, st.cell),
+      hp: st.hp,
+      maxHp: st.maxHp,
+      repairCost: repairCost(state, st.cell),
+      canRepair: state.player.supplies >= repairCost(state, st.cell),
       targeting: st.targeting,
     };
   }
@@ -342,6 +352,10 @@ export function toggleSpeed(): void {
 
 export function upgradeSelected(): void {
   if (session && selected >= 0) session.issue({ type: 'upgradeTower', cell: selected });
+}
+
+export function repairSelected(): void {
+  if (session && selected >= 0) session.issue({ type: 'repairStructure', cell: selected });
 }
 
 export function sellSelected(): void {

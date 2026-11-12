@@ -1,5 +1,5 @@
 import type { ContentPack, FactionId, LevelDef, TargetingMode } from '../content/types';
-import { computeDistanceField } from './pathfinding';
+import { computeBreachField, computeDistanceField } from './pathfinding';
 
 export const Cell = { Ground: 0, Spawn: 1, Base: 2, Obstacle: 3 } as const;
 
@@ -13,8 +13,13 @@ export interface Structure {
   tier: number;
   cooldown: number;
   targeting: TargetingMode;
-  /** Total supplies invested; sell value derives from it. */
+  /** Total supplies invested; sell value and repair cost derive from it. */
   spent: number;
+  hp: number;
+  maxHp: number;
+  /** While > 0 the tower fires `jamPct` percent slower. */
+  jamTicks: number;
+  jamPct: number;
 }
 
 export interface Unit {
@@ -39,6 +44,8 @@ export interface Unit {
   burnTicks: number;
   pushTicks: number;
   pushImmune: number;
+  /** Ticks until the unit's ability is ready again. */
+  abilityCd: number;
   /** Reached the base; removed without bounty. */
   leaked: boolean;
 }
@@ -86,6 +93,10 @@ export type SimEvent =
   | { type: 'placed'; cell: number }
   | { type: 'sold'; cell: number }
   | { type: 'upgraded'; cell: number }
+  | { type: 'repaired'; cell: number }
+  | { type: 'destroyed'; cell: number }
+  | { type: 'unitShot'; x: number; y: number; cell: number; color: number }
+  | { type: 'heal'; x: number; y: number; range: number }
   | { type: 'shot'; cell: number }
   | { type: 'hit'; x: number; y: number; radius: number; color: number }
   | { type: 'pulse'; cell: number; range: number; color: number }
@@ -109,8 +120,12 @@ export interface GameState {
   cells: Uint8Array;
   /** Structure id per cell, 0 when empty. */
   structAt: Int32Array;
+  /** 1 where the structure on a cell is a wall. */
+  wallAt: Uint8Array;
   /** Distance to the base per cell for ground units. */
   dist: Uint16Array;
+  /** Travel cost to the base for units that break through structures instead of walking around. */
+  breachDist: Uint16Array;
   /** Bumped whenever a structure is added or removed. */
   gridVersion: number;
   spawnCells: number[];
@@ -136,6 +151,16 @@ export function blockedMask(state: GameState, extraBlocked = -1): Uint8Array {
 
 export function recomputePaths(state: GameState): void {
   computeDistanceField(state.cols, state.rows, blockedMask(state), state.baseCells, state.dist);
+  computeBreachField(state.cols, state.rows, state.cells, state.structAt, state.baseCells, state.breachDist);
+}
+
+/** Takes a structure off the board (sold or destroyed) and re-routes everyone. */
+export function removeStructure(state: GameState, s: Structure): void {
+  state.structAt[s.cell] = 0;
+  state.wallAt[s.cell] = 0;
+  state.structures.splice(state.structures.indexOf(s), 1);
+  state.gridVersion++;
+  recomputePaths(state);
 }
 
 export function createState(content: ContentPack, levelId: string, faction: FactionId, seed: number): GameState {
@@ -173,7 +198,9 @@ export function createState(content: ContentPack, levelId: string, faction: Fact
     rows,
     cells,
     structAt: new Int32Array(cols * rows),
+    wallAt: new Uint8Array(cols * rows),
     dist: new Uint16Array(cols * rows),
+    breachDist: new Uint16Array(cols * rows),
     gridVersion: 0,
     spawnCells,
     baseCells,

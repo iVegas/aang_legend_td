@@ -176,7 +176,24 @@ effort:
 | **Tiny signaling relay** | Host gets a short room code; a stateless edge function relays the offer/answer once | A few dozen lines of serverless code; much smoother; still no game traffic on the server |
 | **Matchmaking** | A lobby service pairs strangers | Needs real backend, moderation, accounts — out of scope for now |
 
-Plan: start with the room-code relay, keep QR as the fully serverless fallback.
+Plan: **QR / link exchange is the baseline and must always work**, because P2P has to be
+playable with no server at all. The room-code relay is a convenience layered on top and
+is used only when it is reachable.
+
+### Playing without a server
+
+P2P never depends on the verification server:
+
+- **Connecting:** QR / link exchange needs nothing but the two devices.
+- **Fair play:** lockstep and the periodic hash comparison run between the peers
+  themselves, so a tampered client is still detected as a desync.
+- **Results:** with no server, a match result is agreed by both peers' matching final
+  hashes and recorded locally as *unverified*. Nothing is uploaded later on trust.
+- **Unlock gate:** offline, the P2P unlock falls back to local campaign progress.
+
+What the server adds when present: results that count for anything shared (rankings,
+verified unlocks), arbitration when the two peers disagree, and disconnect tracking.
+The interface shows which kind of match is being played.
 
 NAT traversal: public STUN is enough for most home/mobile networks. Some carrier and
 corporate NATs need a TURN relay, which costs money to run; treat it as optional and show

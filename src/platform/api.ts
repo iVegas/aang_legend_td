@@ -53,8 +53,18 @@ function identity(): Promise<Identity | null> {
   return identityPromise;
 }
 
+// Circuit breaker: after a failed call the server is assumed down for a while, so a
+// missing server costs one short timeout rather than a delay on every level start.
+const RETRY_AFTER_MS = 30_000;
+let downUntil = 0;
+
+/** True when it is worth trying the network at all. */
+export function serverReachable(): boolean {
+  return apiEnabled && navigator.onLine !== false && Date.now() >= downUntil;
+}
+
 async function request<T>(path: string, body?: unknown, timeoutMs = 8000): Promise<{ status: number; data: T } | null> {
-  if (!apiEnabled) return null;
+  if (!serverReachable()) return null;
   const abort = new AbortController();
   const timer = setTimeout(() => abort.abort(), timeoutMs);
   try {
@@ -64,8 +74,11 @@ async function request<T>(path: string, body?: unknown, timeoutMs = 8000): Promi
       body: body === undefined ? undefined : JSON.stringify(body),
       signal: abort.signal,
     });
+    // A gateway error means a proxy answered but the server behind it did not.
+    if (res.status >= 502 && res.status <= 504) throw new Error('unavailable');
     return { status: res.status, data: (await res.json()) as T };
   } catch {
+    downUntil = Date.now() + RETRY_AFTER_MS;
     return null;
   } finally {
     clearTimeout(timer);
@@ -76,7 +89,7 @@ async function request<T>(path: string, body?: unknown, timeoutMs = 8000): Promi
 export async function startAttempt(levelId: string, faction: FactionId): Promise<{ attemptId: string; seed: number } | null> {
   const id = apiEnabled ? await identity() : null;
   if (!id) return null;
-  const res = await request<{ attemptId: string; seed: number; playerId: string }>('/v1/attempts', { publicKey: id.publicKey, levelId, faction }, 2500);
+  const res = await request<{ attemptId: string; seed: number; playerId: string }>('/v1/attempts', { publicKey: id.publicKey, levelId, faction }, 1500);
   if (!res || res.status !== 200) return null;
   if (id.playerId !== res.data.playerId) {
     id.playerId = res.data.playerId;

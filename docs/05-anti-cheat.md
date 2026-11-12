@@ -65,7 +65,11 @@ content version is part of the attempt, so old replays are checked against the d
 they were played on.
 
 Offline play stays fully available; offline results are simply local-only and do not
-count toward anything shared.
+count toward anything shared. The client treats the server as optional at every step:
+a failed call opens a 30-second circuit breaker, so an unreachable server costs one
+short timeout and then nothing, and the result screen says whether a match was verified.
+The same holds for P2P: see
+[Playing without a server](03-game-modes.md#playing-without-a-server).
 
 ### Identity
 

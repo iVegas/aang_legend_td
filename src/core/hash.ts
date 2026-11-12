@@ -18,11 +18,12 @@ export function hashState(state: GameState): number {
   mixStr(state.outcome);
   for (const s of state.structures) {
     mix(s.id); mixStr(s.kind); mix(s.cell); mix(s.tier); mix(s.cooldown); mixStr(s.targeting); mix(s.spent);
+    mix(s.hp); mix(s.maxHp); mix(s.jamTicks); mix(s.jamPct);
   }
   for (const u of state.units) {
     mix(u.id); mixStr(u.kind); mix(u.x); mix(u.y); mix(u.cell); mix(u.next); mix(u.hp);
     mix(u.slowPct); mix(u.slowTicks); mix(u.stunTicks); mix(u.stunImmune);
-    mix(u.burnDmg); mix(u.burnTicks); mix(u.pushTicks); mix(u.pushImmune);
+    mix(u.burnDmg); mix(u.burnTicks); mix(u.pushTicks); mix(u.pushImmune); mix(u.abilityCd);
   }
   for (const p of state.projectiles) {
     mix(p.id); mix(p.x); mix(p.y); mix(p.target); mix(p.tx); mix(p.ty);

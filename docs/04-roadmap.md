@@ -10,7 +10,7 @@ Milestones are ordered so that each one ends with something playable on a phone.
 | M1 | Walking skeleton | Grid on screen, units path from top to bottom around walls |
 | M2 | Defense MVP | Towers, waves, economy, win/lose, save/resume |
 | M3 | Four factions | Real art; remaining mechanics; full Defense campaigns |
-| M4 | Destructible structures | Structure HP, siege and anti-tower units, repair |
+| M4 | Destructible structures ✅ | Structure HP, siege and anti-tower units, repair |
 | M5 | Attack mode | Attacker HUD, defender AI, Attack campaigns |
 | M6 | Two-way mode | Two boards, income economy, combined AI |
 | M7 | P2P multiplayer | Lockstep over WebRTC, asymmetric duel, then two-way duel |
@@ -34,6 +34,16 @@ towers and four units, ahead of the M3 plan, because the content is data-driven.
 - Synthesised sound effects with mute, auto-pause when hidden, screen wake lock.
 - Tests: pathfinding properties, command rules, determinism, replay-from-log, and a
   reference bot that plays every level with every nation.
+
+## Done in M4 (Phase 2)
+
+- Structure health, destruction with live re-routing, repair, health-scaled sell value.
+- Unit abilities: heal, trample, ranged vs towers (with jamming), ranged vs structures,
+  and breaching with its own cost field.
+- Wall effects: ice slow aura, iron burn-on-hit, stone durability.
+- Health bars, shot and destruction effects, repair button.
+- Balance is again bot-checked only, and the bot now loses most of level 2 as well as
+  levels 3–4. A human balance pass is the most valuable next step.
 
 ## Done: verification server
 

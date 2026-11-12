@@ -10,7 +10,7 @@ function damage(u: Unit, amount: number, def: TowerDef, armor: number): void {
   u.hp -= Math.max(1, a - armor);
 }
 
-function applyEffects(u: Unit, effects: StatusEffectDef[] | undefined): void {
+function applyEffects(u: Unit, effects: StatusEffectDef[] | undefined, structAt: Int32Array): void {
   if (!effects) return;
   for (const e of effects) {
     switch (e.type) {
@@ -31,9 +31,12 @@ function applyEffects(u: Unit, effects: StatusEffectDef[] | undefined): void {
         if (u.pushTicks === 0 && u.pushImmune === 0) {
           u.pushTicks = e.ticks;
           // Turn around on the spot: head back to the cell just left.
-          const from = u.cell;
-          u.cell = u.next;
-          u.next = from;
+          // (Unless it is facing a structure it was breaking through: then it just backs off.)
+          if (structAt[u.next] === 0) {
+            const from = u.cell;
+            u.cell = u.next;
+            u.next = from;
+          }
         }
         break;
     }
@@ -42,7 +45,7 @@ function applyEffects(u: Unit, effects: StatusEffectDef[] | undefined): void {
 
 function strike(state: GameState, u: Unit, amount: number, def: TowerDef, tier: TowerTierDef): void {
   damage(u, amount, def, state.content.units[u.kind].armor);
-  applyEffects(u, tier.effects);
+  applyEffects(u, tier.effects, state.structAt);
 }
 
 /** Fixed-point distance a unit still has to travel to the base; lower means further along. */
@@ -50,7 +53,9 @@ function remaining(state: GameState, u: Unit): number {
   if (u.flying) return cellCenter(state.rows - 1) - u.y;
   const tx = cellCenter(u.next % state.cols);
   const ty = cellCenter(Math.floor(u.next / state.cols));
-  return state.dist[u.next] * ONE + Math.abs(tx - u.x) + Math.abs(ty - u.y);
+  // A unit about to break through a structure is measured from where it stands.
+  const cells = state.structAt[u.next] !== 0 ? state.dist[u.cell] : state.dist[u.next];
+  return cells * ONE + Math.abs(tx - u.x) + Math.abs(ty - u.y);
 }
 
 function canTarget(def: TowerDef, u: Unit): boolean {
@@ -80,6 +85,7 @@ export function towerSystem(state: GameState): void {
   const { cols } = state;
   for (const s of state.structures) {
     if (s.kind === WALL) continue;
+    if (s.jamTicks > 0) s.jamTicks--;
     if (s.cooldown > 0 && --s.cooldown > 0) continue;
     const def = state.content.towers[s.kind];
     const tier = def.tiers[s.tier];
@@ -133,7 +139,7 @@ export function towerSystem(state: GameState): void {
         state.events.push({ type: 'shot', cell: s.cell });
       }
     }
-    s.cooldown = tier.cooldown;
+    s.cooldown = s.jamTicks > 0 ? Math.floor((tier.cooldown * (100 + s.jamPct)) / 100) : tier.cooldown;
   }
 }
 

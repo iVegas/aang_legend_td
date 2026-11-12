@@ -1,6 +1,6 @@
 import type { TargetingMode } from '../content/types';
 import { computeDistanceField, INF } from './pathfinding';
-import { blockedMask, Cell, recomputePaths, structureAt, WALL, type GameState } from './state';
+import { blockedMask, Cell, recomputePaths, removeStructure, structureAt, WALL, type GameState } from './state';
 import { startWave } from './systems/waves';
 
 // Every outside influence on a match is one of these. A match is fully described by
@@ -9,12 +9,27 @@ export type Command =
   | { type: 'placeStructure'; kind: string; cell: number }
   | { type: 'sellStructure'; cell: number }
   | { type: 'upgradeTower'; cell: number }
+  | { type: 'repairStructure'; cell: number }
   | { type: 'setTargeting'; cell: number; mode: TargetingMode }
   | { type: 'startWave' };
 
 export type PlaceError = 'over' | 'bounds' | 'unknown' | 'terrain' | 'occupied' | 'unit' | 'funds' | 'sealed';
 
 export const SELL_REFUND_PCT = 70;
+/** Restoring a structure from nothing costs this share of what was spent on it. */
+export const REPAIR_COST_PCT = 60;
+const TIER_HP_BONUS_PCT = 40;
+
+export function structureMaxHp(state: GameState, kind: string, tier: number): number {
+  if (kind === WALL) return state.content.factions[state.player.faction].wall.hp;
+  return Math.floor((state.content.towers[kind].hp * (100 + TIER_HP_BONUS_PCT * tier)) / 100);
+}
+
+export function repairCost(state: GameState, cell: number): number {
+  const s = structureAt(state, cell);
+  if (!s || s.hp >= s.maxHp) return 0;
+  return Math.max(1, Math.ceil(((s.maxHp - s.hp) * s.spent * REPAIR_COST_PCT) / (s.maxHp * 100)));
+}
 export const TARGETING_MODES: TargetingMode[] = ['first', 'strongest', 'closest'];
 
 export function structureCost(state: GameState, kind: string): number | undefined {
@@ -30,7 +45,9 @@ export function wouldSeal(state: GameState, cell: number): boolean {
   for (const s of state.spawnCells) if (dist[s] === INF) return true;
   for (const u of state.units) {
     if (u.flying) continue;
-    if (dist[u.cell] === INF || dist[u.next] === INF) return true;
+    if (dist[u.cell] === INF) return true;
+    // A breaching unit may be heading into a structure; only where it stands matters.
+    if (dist[u.next] === INF && state.structAt[u.next] === 0) return true;
   }
   return false;
 }
@@ -59,7 +76,8 @@ export function upgradeCost(state: GameState, cell: number): number | undefined 
 
 export function sellValue(state: GameState, cell: number): number {
   const s = structureAt(state, cell);
-  return s ? Math.floor((s.spent * SELL_REFUND_PCT) / 100) : 0;
+  // Scaled by remaining health, so selling a dying tower is not a free refund.
+  return s ? Math.floor((s.spent * SELL_REFUND_PCT * s.hp) / (100 * s.maxHp)) : 0;
 }
 
 /** Applies a command if it is valid in the current state. Invalid commands are dropped. */
@@ -70,8 +88,13 @@ export function applyCommand(state: GameState, cmd: Command): boolean {
       if (checkPlace(state, cmd.kind, cmd.cell) !== null) return false;
       const cost = structureCost(state, cmd.kind)!;
       const id = state.nextId++;
-      state.structures.push({ id, kind: cmd.kind, cell: cmd.cell, tier: 0, cooldown: 0, targeting: 'first', spent: cost });
+      const hp = structureMaxHp(state, cmd.kind, 0);
+      state.structures.push({
+        id, kind: cmd.kind, cell: cmd.cell, tier: 0, cooldown: 0, targeting: 'first', spent: cost,
+        hp, maxHp: hp, jamTicks: 0, jamPct: 0,
+      });
       state.structAt[cmd.cell] = id;
+      state.wallAt[cmd.cell] = cmd.kind === WALL ? 1 : 0;
       state.player.supplies -= cost;
       state.gridVersion++;
       recomputePaths(state);
@@ -82,10 +105,7 @@ export function applyCommand(state: GameState, cmd: Command): boolean {
       const s = structureAt(state, cmd.cell);
       if (!s) return false;
       state.player.supplies += sellValue(state, cmd.cell);
-      state.structAt[cmd.cell] = 0;
-      state.structures.splice(state.structures.indexOf(s), 1);
-      state.gridVersion++;
-      recomputePaths(state);
+      removeStructure(state, s);
       state.events.push({ type: 'sold', cell: cmd.cell });
       return true;
     }
@@ -96,8 +116,22 @@ export function applyCommand(state: GameState, cmd: Command): boolean {
       state.player.supplies -= cost;
       s.spent += cost;
       s.tier++;
+      // The upgrade adds the new tier's extra health without healing existing damage.
+      const maxHp = structureMaxHp(state, s.kind, s.tier);
+      s.hp += maxHp - s.maxHp;
+      s.maxHp = maxHp;
       state.gridVersion++;
       state.events.push({ type: 'upgraded', cell: cmd.cell });
+      return true;
+    }
+    case 'repairStructure': {
+      const s = structureAt(state, cmd.cell);
+      const cost = repairCost(state, cmd.cell);
+      if (!s || cost === 0 || state.player.supplies < cost) return false;
+      state.player.supplies -= cost;
+      s.hp = s.maxHp;
+      state.gridVersion++;
+      state.events.push({ type: 'repaired', cell: cmd.cell });
       return true;
     }
     case 'setTargeting': {

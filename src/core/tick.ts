@@ -1,5 +1,6 @@
 import { applyCommand, type Command } from './commands';
 import type { GameState } from './state';
+import { abilitySystem } from './systems/abilities';
 import { projectileSystem, resolveSystem, towerSystem } from './systems/combat';
 import { movementSystem } from './systems/movement';
 import { waveEndSystem, waveSystem } from './systems/waves';
@@ -12,6 +13,7 @@ export function step(state: GameState, commands: readonly Command[]): void {
   for (const cmd of commands) applyCommand(state, cmd);
   waveSystem(state);
   movementSystem(state);
+  abilitySystem(state);
   towerSystem(state);
   projectileSystem(state);
   resolveSystem(state);

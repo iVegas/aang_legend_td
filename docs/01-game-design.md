@@ -150,21 +150,61 @@ just how it looks.
 Every faction's three towers should cover at least three of these five rows, so no
 matchup is unwinnable.
 
-## Structures and damage (phased)
+## Structures and damage
 
-- **Phase 1 (MVP) — implemented:** walls and towers are indestructible; siege, healing and
-  ranged-vs-tower unit abilities are disabled, so units differ only in health, speed,
-  armour, flight and numbers. Wall side-effects (ice slow, iron burn) are not in yet.
-  The Flame Jet's cone is approximated by a short-range splash.
-- **Phase 2:** structures get HP; siege units and tower-harassing units come online;
-  repair is added. This is a prerequisite for Attack mode being interesting.
+Implemented in two phases; both are in the game.
+
+- **Phase 1:** maze-and-shoot. Units differ in health, speed, armour, flight and numbers.
+- **Phase 2:** structures have health and attackers fight back.
+
+### Structure health
+
+- Walls have a fixed health by nation (Stone Slab highest, Wind Screen lowest and
+  cheapest). Towers have a base health that grows 40 % per tier.
+- A structure at zero health is removed and every unit re-routes at once.
+- **Repair** restores full health for 60 % of the invested supplies, pro-rated by the
+  missing share. **Sell** value is scaled by remaining health, so selling a dying tower
+  is not a free refund.
+- Upgrading adds the new tier's extra health but does not heal existing damage.
+
+### Wall effects
+
+| Nation | Wall | Effect |
+| --- | --- | --- |
+| Water | Ice Block | Ground units next to it are slowed 20 % |
+| Earth | Stone Slab | Twice the health of the others |
+| Fire | Iron Plate | Burns any unit that damages it |
+| Air | Wind Screen | Cheapest; quick to replace |
+
+### Unit abilities
+
+| Unit | Ability |
+| --- | --- |
+| Waterbender | Heals nearby allies |
+| Ice Ram | Tramples: damages every structure it walks beside |
+| Earthbender | Hurls boulders at towers in range |
+| Badgermole | Breaches: goes through walls and towers on its straightest route |
+| Firebender | Shoots towers and jams them — 50 % slower fire rate for 3 s |
+| Siege Tank | Shells any structure in range |
+
+Air Nomad units have no structure attacks; their threat is speed, numbers and flight.
+Units use abilities while walking — only the Badgermole stops, and only while something
+blocks it.
+
+A breaching unit follows its own cost field in which a structure counts as six extra
+cells: it takes a short detour if one exists and smashes through otherwise. That makes
+"one long wall with a far gap" unsafe against it, which is the intended counter to pure
+maze-building.
+
+Still approximated: the Flame Jet's cone is a short-range splash and the Cyclone slows
+rather than pulls.
 
 ## Controls (touch-first)
 
 - Tap a build-bar item, then tap a cell to place. Invalid cells (occupied, would seal the
   path) flash red and show the reason.
 - Drag across cells with the wall tool selected to paint a line of walls.
-- Tap a placed structure to swap the build bar for its panel: upgrade, sell, targeting
+- Tap a placed structure to swap the build bar for its panel: upgrade, repair, sell, targeting
   priority (first / strongest / closest). A bottom panel was chosen over a radial menu so
   the buttons never cover the board or fall off a screen edge.
 - Towers are placed on release, so the range preview can be dragged into position first.

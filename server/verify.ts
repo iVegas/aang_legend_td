@@ -39,6 +39,8 @@ function parseCommand(raw: unknown): Command | null {
       return isInt(c.cell) ? { type: 'sellStructure', cell: c.cell } : null;
     case 'upgradeTower':
       return isInt(c.cell) ? { type: 'upgradeTower', cell: c.cell } : null;
+    case 'repairStructure':
+      return isInt(c.cell) ? { type: 'repairStructure', cell: c.cell } : null;
     case 'setTargeting':
       return isInt(c.cell) && typeof c.mode === 'string' && TARGETING.includes(c.mode)
         ? { type: 'setTargeting', cell: c.cell, mode: c.mode as 'first' | 'strongest' | 'closest' }

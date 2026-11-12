@@ -9,6 +9,9 @@
 3. **P2P without an authoritative server.** That requires the simulation to be
    deterministic from day one — retrofitting determinism later means rewriting the core.
 4. **Reskinnable.** Lore, names, stats and art are data, not code.
+5. **The server is an enhancement, never a requirement.** Every mode, including P2P,
+   must be playable with no server running. A server adds assurance (verified results,
+   easier matchmaking); its absence only removes that assurance and is shown as such.
 
 ## Tech stack
 
@@ -111,6 +114,7 @@ type Command =
   | { type: 'placeStructure'; kind: StructureId; cell: CellIndex }
   | { type: 'sellStructure'; cell: CellIndex }
   | { type: 'upgradeTower'; cell: CellIndex }
+  | { type: 'repairStructure'; cell: CellIndex }
   | { type: 'setTargeting'; cell: CellIndex; mode: TargetingMode }
   | { type: 'startWave' }
   // planned with Attack mode:
@@ -133,6 +137,7 @@ apply commands for this tick
 → waves / spawning
 → pathfinding (only if the grid changed)
 → movement
+→ unit abilities (shoot / trample / breach / heal), structure destruction
 → targeting
 → combat (attacks, projectiles, status effects)
 → deaths, bounties, base damage
@@ -162,6 +167,10 @@ checkpoint, P2P resync).
 - **Seal check** for a proposed build: run the BFS on the hypothetical grid and reject if
   any spawn cell or any cell currently occupied by a ground unit is unreachable.
 - Flying units skip the field and move straight toward the base row.
+- Breaching units read a second field (Dijkstra, structures passable at a cost of six
+  extra cells) and attack whatever structure their next step lands on. The seal check
+  ignores a breacher's next cell when it is a structure, so building stays possible
+  while one is chewing through a wall.
 - In Two-way mode each board has its own field.
 
 ## Controllers

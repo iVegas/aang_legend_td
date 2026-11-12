@@ -1,5 +1,5 @@
 import { cellCenter } from '../fixed';
-import { stepAway, stepToward } from '../pathfinding';
+import { neighbours, stepAway, stepToward } from '../pathfinding';
 import { Cell, type GameState, type Unit } from '../state';
 
 const PUSH_SPEED = 128; // 2.5 cells per second
@@ -13,13 +13,18 @@ function chooseNext(state: GameState, u: Unit, pushed: boolean): void {
     const row = Math.floor(u.cell / cols);
     if (pushed) u.next = row > 0 ? u.cell - cols : u.cell;
     else u.next = row < rows - 1 ? u.cell + cols : u.cell;
+  } else if (pushed) {
+    u.next = stepAway(u.cell, cols, rows, state.dist);
   } else {
-    u.next = pushed ? stepAway(u.cell, cols, rows, state.dist) : stepToward(u.cell, cols, rows, state.dist);
+    const breacher = state.content.units[u.kind].ability?.type === 'breach';
+    u.next = stepToward(u.cell, cols, rows, breacher ? state.breachDist : state.dist);
   }
 }
 
 export function movementSystem(state: GameState): void {
-  const { cols } = state;
+  const { cols, rows } = state;
+  const aura = state.content.factions[state.player.faction].wall.slowAuraPct ?? 0;
+  const nb = [0, 0, 0, 0];
   for (const u of state.units) {
     u.px = u.x;
     u.py = u.y;
@@ -34,6 +39,18 @@ export function movementSystem(state: GameState): void {
       continue;
     }
     if (u.stunImmune > 0) u.stunImmune--;
+
+    // Walls with an aura slow whoever is walking alongside them.
+    if (aura > 0 && !u.flying && (u.slowTicks === 0 || u.slowPct <= aura)) {
+      neighbours(u.cell, cols, rows, nb);
+      for (let i = 0; i < 4; i++) {
+        if (nb[i] >= 0 && state.wallAt[nb[i]]) {
+          u.slowPct = aura;
+          u.slowTicks = 2;
+          break;
+        }
+      }
+    }
 
     let speed = state.content.units[u.kind].speed;
     if (u.slowTicks > 0) {
@@ -54,6 +71,12 @@ export function movementSystem(state: GameState): void {
       if (u.next === u.cell) {
         chooseNext(state, u, pushed);
         if (u.next === u.cell) break;
+      }
+      // A breaching unit stands still while it works on whatever blocks its way.
+      if (!u.flying && state.structAt[u.next] !== 0) {
+        if (pushed) u.next = u.cell;
+        else chooseNext(state, u, false);
+        if (u.next === u.cell || state.structAt[u.next] !== 0) break;
       }
       const tx = cellCenter(u.next % cols);
       const ty = cellCenter(Math.floor(u.next / cols));

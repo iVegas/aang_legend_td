@@ -140,7 +140,9 @@ function Game({ hud, verify }: { hud: Hud; verify: VerifyStatus }) {
                 {hud.selection.name}
                 {!hud.selection.isWall && <span class="tier"> · Tier {hud.selection.tier + 1}</span>}
               </strong>
-              <small>{hud.selection.stats}</small>
+              <small>
+                {hud.selection.stats} · <span class={hud.selection.hp < hud.selection.maxHp ? 'danger' : ''}>♥ {hud.selection.hp}/{hud.selection.maxHp}</span>
+              </small>
             </div>
             <div class="panel-actions">
               {!hud.selection.isWall && (
@@ -153,6 +155,11 @@ function Game({ hud, verify }: { hud: Hud; verify: VerifyStatus }) {
                 <button class="act primary" disabled={!hud.selection.canUpgrade} onClick={game.upgradeSelected}>
                   <small>Upgrade</small>
                   {hud.selection.upgradeCost === null ? 'Max' : `● ${hud.selection.upgradeCost}`}
+                </button>
+              )}
+              {hud.selection.repairCost > 0 && (
+                <button class="act primary" disabled={!hud.selection.canRepair} onClick={game.repairSelected}>
+                  <small>Repair</small>● {hud.selection.repairCost}
                 </button>
               )}
               <button class="act" onClick={game.sellSelected}>

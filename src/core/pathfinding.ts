@@ -80,3 +80,46 @@ export function stepAway(cell: number, cols: number, rows: number, dist: Uint16A
   }
   return best;
 }
+
+/** Extra travel cost a breaching unit assigns to a cell it has to smash through. */
+export const BREACH_COST = 6;
+
+/**
+ * Like the distance field, but player structures are passable at a price, so a breaching
+ * unit prefers a short detour and otherwise goes through. Terrain obstacles stay solid.
+ * Plain Dijkstra with a linear scan: the board is small and this runs only on grid changes.
+ */
+export function computeBreachField(
+  cols: number,
+  rows: number,
+  cells: Uint8Array,
+  structAt: Int32Array,
+  sources: number[],
+  out: Uint16Array,
+): Uint16Array {
+  const n = cols * rows;
+  out.fill(INF);
+  const done = new Uint8Array(n);
+  for (const s of sources) out[s] = 0;
+  const nb = [0, 0, 0, 0];
+  for (;;) {
+    let cell = -1;
+    let best = INF;
+    for (let i = 0; i < n; i++) {
+      if (!done[i] && out[i] < best) {
+        best = out[i];
+        cell = i;
+      }
+    }
+    if (cell < 0) break;
+    done[cell] = 1;
+    neighbours(cell, cols, rows, nb);
+    for (let i = 0; i < 4; i++) {
+      const next = nb[i];
+      if (next < 0 || done[next] || cells[next] === 3) continue;
+      const d = best + 1 + (structAt[next] !== 0 ? BREACH_COST : 0);
+      if (d < out[next]) out[next] = d;
+    }
+  }
+  return out;
+}

@@ -10,7 +10,7 @@ export function spawnUnit(state: GameState, kind: string, cell: number, hpPct: n
   state.units.push({
     id: state.nextId++, kind, x, y, px: x, py: y, cell, next: cell, hp, maxHp: hp, flying: def.flying,
     slowPct: 0, slowTicks: 0, stunTicks: 0, stunImmune: 0, burnDmg: 0, burnTicks: 0,
-    pushTicks: 0, pushImmune: 0, leaked: false,
+    pushTicks: 0, pushImmune: 0, abilityCd: 0, leaked: false,
   });
 }
 

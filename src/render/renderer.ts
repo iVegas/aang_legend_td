@@ -19,7 +19,7 @@ const COLORS = {
 };
 
 interface Effect {
-  kind: 'ring' | 'burst' | 'chain' | 'flash';
+  kind: 'ring' | 'burst' | 'chain' | 'flash' | 'bolt';
   x: number;
   y: number;
   radius: number;
@@ -148,6 +148,18 @@ export class Renderer {
         break;
       case 'leak':
         this.fxList.push({ kind: 'burst', x: fx(e.x), y: fx(e.y), radius: 44, color: COLORS.bad, age: 0, life: 420 });
+        break;
+      case 'unitShot':
+        this.fxList.push({ kind: 'bolt', x: 0, y: 0, radius: 0, color: e.color, age: 0, life: 180, points: [fx(e.x), fx(e.y), cx(e.cell), cy(e.cell)] });
+        break;
+      case 'heal':
+        this.fxList.push({ kind: 'ring', x: fx(e.x), y: fx(e.y), radius: fx(e.range), color: COLORS.ok, age: 0, life: 300 });
+        break;
+      case 'destroyed':
+        this.fxList.push({ kind: 'burst', x: cx(e.cell), y: cy(e.cell), radius: 48, color: 0xffb070, age: 0, life: 450 });
+        break;
+      case 'repaired':
+        this.fxList.push({ kind: 'ring', x: cx(e.cell), y: cy(e.cell), radius: 40, color: COLORS.ok, age: 0, life: 260 });
         break;
       case 'placed':
       case 'upgraded':
@@ -400,9 +412,27 @@ export class Renderer {
         case 'flash':
           g.rect(e.x, e.y, L, L).fill({ color: e.color, alpha: fade * 0.55 });
           break;
+        case 'bolt': {
+          const p = e.points!;
+          g.moveTo(p[0], p[1]).lineTo(p[2], p[3]).stroke({ width: 3, color: e.color, alpha: fade });
+          g.circle(p[2], p[3], 6 + 8 * t).fill({ color: e.color, alpha: fade * 0.6 });
+          break;
+        }
       }
     }
     this.fxList.length = w;
+
+    // Health bars for damaged structures, and a marker on jammed towers.
+    for (const st of s.structures) {
+      const x = (st.cell % s.cols) * L;
+      const y = Math.floor(st.cell / s.cols) * L;
+      if (st.hp < st.maxHp) {
+        const ratio = Math.max(0, st.hp / st.maxHp);
+        g.rect(x + 8, y + 5, L - 16, 7).fill({ color: 0x000000, alpha: 0.75 });
+        g.rect(x + 9, y + 6, (L - 18) * ratio, 5).fill(ratio > 0.5 ? COLORS.ok : ratio > 0.25 ? 0xffc94a : COLORS.bad);
+      }
+      if (st.jamTicks > 0) g.circle(x + L - 12, y + 14, 6).fill(0xff8a3c).stroke({ width: 1.5, color: 0x000000, alpha: 0.7 });
+    }
 
     const o = this.overlay;
     if (o.selected >= 0) {

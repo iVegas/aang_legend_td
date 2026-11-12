@@ -20,6 +20,11 @@ export interface Selection {
   upgradeCost: number | null;
   canUpgrade: boolean;
   sellValue: number;
+  hp: number;
+  maxHp: number;
+  /** 0 when undamaged. */
+  repairCost: number;
+  canRepair: boolean;
   targeting: TargetingMode;
 }
 
