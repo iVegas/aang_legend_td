@@ -54,7 +54,13 @@ export interface AppState {
   hud: Hud | null;
   toast: string | null;
   updateReady: boolean;
+  /** Server-verified stars per `${faction}:${levelId}`. */
+  verified: Record<string, number>;
+  /** Verification status of the match that just ended. */
+  verify: VerifyStatus;
 }
+
+export type VerifyStatus = 'none' | 'local' | 'pending' | 'verified' | 'rejected' | 'queued';
 
 let state: AppState = {
   screen: 'menu',
@@ -65,6 +71,8 @@ let state: AppState = {
   hud: null,
   toast: null,
   updateReady: false,
+  verified: {},
+  verify: 'none',
 };
 const listeners = new Set<() => void>();
 

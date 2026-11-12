@@ -1,7 +1,7 @@
 import { content, type FactionId } from '../content';
-import { createState, step, type Command, type GameState, type SimEvent } from '../core';
+import { createState, step, TICK_MS, type Command, type GameState, type SimEvent } from '../core';
 
-export const TICK_MS = 50;
+export { TICK_MS };
 const MAX_FRAME_MS = 250;
 
 export interface LoggedCommand {
@@ -17,6 +17,8 @@ export interface SavedMatch {
   seed: number;
   tick: number;
   log: LoggedCommand[];
+  /** Server attempt this match belongs to, when it was started online. */
+  attemptId?: string;
 }
 
 /** Owns one match: feeds commands into the simulation on a fixed timestep and records them. */
@@ -34,6 +36,7 @@ export class Session {
     readonly levelId: string,
     readonly faction: FactionId,
     readonly seed: number,
+    readonly attemptId?: string,
   ) {
     this.state = createState(content, levelId, faction, seed);
   }
@@ -41,7 +44,7 @@ export class Session {
   static restore(save: SavedMatch): Session | null {
     if (save.contentVersion !== content.version) return null;
     try {
-      const session = new Session(save.levelId, save.faction, save.seed);
+      const session = new Session(save.levelId, save.faction, save.seed, save.attemptId);
       let i = 0;
       while (session.state.tick < save.tick && session.state.outcome === 'playing') {
         const cmds: Command[] = [];
@@ -69,6 +72,7 @@ export class Session {
       seed: this.seed,
       tick: this.state.tick,
       log: this.log.slice(),
+      attemptId: this.attemptId,
     };
   }
 

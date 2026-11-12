@@ -14,7 +14,7 @@ Milestones are ordered so that each one ends with something playable on a phone.
 | M5 | Attack mode | Attacker HUD, defender AI, Attack campaigns |
 | M6 | Two-way mode | Two boards, income economy, combined AI |
 | M7 | P2P multiplayer | Lockstep over WebRTC, asymmetric duel, then two-way duel |
-| M8 | Verified results | Replay-verification service, signed unlocks and match results |
+| M8 | Verified results | Replay-verification service ✅ (built early); signed unlocks and P2P match results still to do |
 
 **M0–M2 are implemented.** All four nations are already selectable with their three
 towers and four units, ahead of the M3 plan, because the content is data-driven.
@@ -34,6 +34,13 @@ towers and four units, ahead of the M3 plan, because the content is data-driven.
 - Synthesised sound effects with mute, auto-pause when hidden, screen wake lock.
 - Tests: pathfinding properties, command rules, determinism, replay-from-log, and a
   reference bot that plays every level with every nation.
+
+## Done: verification server
+
+- Seed issue, signed result submission, server-side replay, verified progress per
+  anonymous device key; client integration with offline fallback and retry queue.
+- Still to do: host it, gate unlocks on verified progress, P2P result signing,
+  signaling relay.
 
 ## Not done yet from the M0–M2 list
 
@@ -78,6 +85,6 @@ Decisions needed from the project owner; the docs assume the default in bold.
     with no named characters or plot from the source. Follow-up: the working title
     contains a main character's name, which sits oddly with that rule — the in-game
     title currently reads "Legend TD".
-11. **Verification backend.** Cheat prevention needs a small server
-    ([Anti-cheat](05-anti-cheat.md)). Where should it run, and is anonymous device
-    identity enough or are accounts wanted?
+11. **Verification backend.** Built ([Server](06-server.md)). Open: where to host it,
+    and whether anonymous device identity is enough or accounts are wanted (progress
+    does not currently follow a player to a new device).

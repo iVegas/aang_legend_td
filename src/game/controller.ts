@@ -1,8 +1,9 @@
 import { content, type FactionId, type TargetingMode } from '../content';
 import {
-  checkPlace, ONE, sellValue, structureAt, structureCost, TARGETING_MODES, TICKS_PER_SECOND, upgradeCost, WALL,
+  checkPlace, ONE, sellValue, starsFor, structureAt, structureCost, TARGETING_MODES, TICKS_PER_SECOND, upgradeCost, WALL,
   type PlaceError, type SimEvent,
 } from '../core';
+import * as api from '../platform/api';
 import { play, setMuted, unlockAudio } from '../platform/audio';
 import { load, remove, save } from '../platform/storage';
 import { Renderer } from '../render/renderer';
@@ -36,6 +37,7 @@ let lastHudKey = '';
 let toastTimer = 0;
 let pointerDown = false;
 let wakeLock: { release(): Promise<void> } | null = null;
+let starting = false;
 
 export const progressKey = (faction: FactionId, levelId: string) => `${faction}:${levelId}`;
 
@@ -52,6 +54,8 @@ export async function boot(host: HTMLElement): Promise<void> {
     faction: settings?.faction ?? null,
     resume: saved && saved.contentVersion === content.version ? { levelId: saved.levelId, faction: saved.faction } : null,
   });
+
+  void refreshVerified();
 
   renderer = await Renderer.create(host);
   const canvas = renderer.canvas;
@@ -89,11 +93,26 @@ export function toggleMute(): void {
   saveSettings();
 }
 
-export function startLevel(levelId: string, faction: FactionId): void {
+async function refreshVerified(): Promise<void> {
+  await api.flushPending();
+  const verified = await api.fetchVerified();
+  if (verified) setState({ verified });
+}
+
+export async function startLevel(levelId: string, faction: FactionId): Promise<void> {
+  if (starting) return;
+  starting = true;
   unlockAudio();
   void remove(SAVE_KEY);
   setState({ resume: null });
-  begin(new Session(levelId, faction, (Math.random() * 0x100000000) >>> 0));
+  try {
+    // Online, the server picks the seed so the result can be verified later.
+    // Offline, the level starts anyway and the result stays local.
+    const attempt = await api.startAttempt(levelId, faction);
+    begin(new Session(levelId, faction, attempt?.seed ?? (Math.random() * 0x100000000) >>> 0, attempt?.attemptId));
+  } finally {
+    starting = false;
+  }
 }
 
 export async function resumeSaved(): Promise<void> {
@@ -127,7 +146,7 @@ function begin(s: Session): void {
   tool = null;
   selected = -1;
   lastHudKey = '';
-  setState({ screen: 'game', faction: s.faction });
+  setState({ screen: 'game', faction: s.faction, verify: 'none' });
   // The canvas host only gets its size once the game screen is laid out.
   requestAnimationFrame(() => {
     renderer?.setState(s.state);
@@ -190,16 +209,12 @@ function onSimEvent(e: SimEvent): void {
   }
 }
 
-function starsFor(baseHp: number, baseMax: number): number {
-  const pct = (baseHp * 100) / baseMax;
-  return pct >= 80 ? 3 : pct >= 40 ? 2 : 1;
-}
-
 function finish(): void {
   if (!session) return;
   void remove(SAVE_KEY);
   setState({ resume: null });
   const { state } = session;
+  void verify(session);
   if (state.outcome !== 'won') return;
   const key = progressKey(session.faction, session.levelId);
   const stars = starsFor(state.player.baseHp, state.player.baseMaxHp);
@@ -210,6 +225,24 @@ function finish(): void {
     void save(PROGRESS_KEY, progress);
     void navigator.storage?.persist?.();
   }
+}
+
+/** Sends the match's inputs to the server, which replays them and records its own verdict. */
+async function verify(s: Session): Promise<void> {
+  if (!s.attemptId) {
+    setState({ verify: api.apiEnabled ? 'local' : 'none' });
+    return;
+  }
+  setState({ verify: 'pending' });
+  const result = await api.submitResult({ attemptId: s.attemptId, tick: s.state.tick, log: s.log });
+  if (result.status === 'verified' && result.stars > 0) {
+    const key = progressKey(s.faction, s.levelId);
+    const verified = { ...getState().verified };
+    verified[key] = Math.max(verified[key] ?? 0, result.stars);
+    setState({ verified });
+  }
+  // Only report on the match still on screen.
+  if (session === s) setState({ verify: result.status === 'offline' ? 'queued' : result.status });
 }
 
 function describe(kind: string, tier: number): string {
@@ -325,14 +358,14 @@ export function cycleTargeting(): void {
 }
 
 export function retry(): void {
-  if (session) startLevel(session.levelId, session.faction);
+  if (session) void startLevel(session.levelId, session.faction);
 }
 
 export function nextLevel(): void {
   if (!session) return;
   const i = content.levels.findIndex((l) => l.id === session!.levelId);
   const next = content.levels[i + 1];
-  if (next) startLevel(next.id, session.faction);
+  if (next) void startLevel(next.id, session.faction);
 }
 
 // ── Pointer input ───────────────────────────────────────────────────────

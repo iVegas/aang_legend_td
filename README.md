@@ -13,6 +13,7 @@ npm install
 npm run dev        # local dev server
 npm test           # simulation tests, including determinism and replay
 npm run build      # production PWA in dist/
+npm run server     # verification server on :8787 (optional; see docs/06-server.md)
 ```
 
 `npm run lint` and `npm run typecheck` are what CI runs alongside the tests.
@@ -25,6 +26,7 @@ npm run build      # production PWA in dist/
 | [Architecture](docs/02-architecture.md) | Tech stack, module layout, deterministic simulation, rendering, PWA, testing |
 | [Game modes](docs/03-game-modes.md) | Defense, Attack (reversed), Two-way, and unlockable P2P multiplayer |
 | [Anti-cheat](docs/05-anti-cheat.md) | Threat model and how replays make results verifiable |
+| [Server](docs/06-server.md) | Verification server: running it, API, CPU cost, extending |
 | [Roadmap and initial tasks](docs/04-roadmap.md) | Milestones, first task list, open questions |
 
 ## The game in one paragraph

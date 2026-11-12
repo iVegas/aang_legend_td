@@ -74,7 +74,8 @@ and `content` without the DOM library, and ESLint bans the imports and the two c
 │  ├─ controllers/         # (planned) ai-defender, ai-attacker, remote
 │  ├─ net/                 # (planned) signaling, transport, lockstep
 │  └─ main.tsx
-└─ tests/                  # core tests + a reference bot that plays full levels
+├─ server/                 # verification server (Node, no runtime deps) — see 06-server.md
+└─ tests/                  # core, session and server tests + a reference bot
 ```
 
 ## The simulation (`core`)

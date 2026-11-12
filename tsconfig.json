@@ -16,5 +16,6 @@
     "jsxImportSource": "preact",
     "noEmit": true
   },
-  "include": ["src", "tests", "vite.config.ts"]
+  "include": ["src", "tests", "vite.config.ts"],
+  "exclude": ["tests/server.test.ts"]
 }

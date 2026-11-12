@@ -1,7 +1,7 @@
 import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
-  { ignores: ['dist', 'dev-dist', 'node_modules'] },
+  { ignores: ['dist', 'dist-server', 'dev-dist', 'node_modules'] },
   ...tseslint.configs.recommended,
   {
     // Determinism guard: the simulation may only depend on itself and content data.

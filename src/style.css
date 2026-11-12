@@ -163,6 +163,9 @@ button:disabled { cursor: default; }
 }
 .result-card h2 { margin: 0 0 6px; font-size: 26px; }
 .result-card p { margin: 6px 0 14px; color: var(--muted); }
+.result-card .verify { font-size: 13px; }
+.result-card .verify.verified, .verified { color: var(--ok); }
+.result-card .verify.rejected { color: var(--danger); }
 .result-actions { display: grid; gap: 8px; }
 .result-actions button { min-height: 48px; border-radius: 12px; background: var(--panel-2); font-weight: 700; }
 .result-actions button.primary { background: #2e7d4f; }

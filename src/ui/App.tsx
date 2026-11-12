@@ -1,6 +1,15 @@
 import { content, FACTION_ORDER, type FactionId } from '../content';
 import * as game from '../game/controller';
-import { useAppState, type Hud } from './store';
+import { useAppState, type Hud, type VerifyStatus } from './store';
+
+const VERIFY_TEXT: Record<VerifyStatus, string> = {
+  none: '',
+  local: 'Played offline — result not verified',
+  pending: 'Verifying result…',
+  verified: 'Result verified ✓',
+  rejected: 'The server did not accept this result',
+  queued: 'Offline — will verify on next launch',
+};
 
 const hex = (color: number) => `#${color.toString(16).padStart(6, '0')}`;
 const stars = (n: number) => '★'.repeat(n) + '☆'.repeat(3 - n);
@@ -9,7 +18,7 @@ export function App({ onUpdate }: { onUpdate: () => void }) {
   const app = useAppState();
   return (
     <>
-      {app.screen === 'menu' ? <Menu onUpdate={onUpdate} /> : app.hud && <Game hud={app.hud} />}
+      {app.screen === 'menu' ? <Menu onUpdate={onUpdate} /> : app.hud && <Game hud={app.hud} verify={app.verify} />}
       {app.toast && <div class="toast" role="status">{app.toast}</div>}
     </>
   );
@@ -54,13 +63,13 @@ function Menu({ onUpdate }: { onUpdate: () => void }) {
           <p class="note">You defend against the other three nations.</p>
         </>
       ) : (
-        <Levels faction={faction} progress={app.progress} />
+        <Levels faction={faction} progress={app.progress} verified={app.verified} />
       )}
     </div>
   );
 }
 
-function Levels({ faction, progress }: { faction: FactionId; progress: Record<string, number> }) {
+function Levels({ faction, progress, verified }: { faction: FactionId; progress: Record<string, number>; verified: Record<string, number> }) {
   const f = content.factions[faction];
   return (
     <>
@@ -75,15 +84,19 @@ function Levels({ faction, progress }: { faction: FactionId; progress: Record<st
       <div class="levels">
         {content.levels.map((level, i) => {
           const earned = progress[game.progressKey(faction, level.id)] ?? 0;
+          const isVerified = earned > 0 && (verified[game.progressKey(faction, level.id)] ?? 0) >= earned;
           const unlocked = i === 0 || (progress[game.progressKey(faction, content.levels[i - 1].id)] ?? 0) > 0;
           return (
-            <button key={level.id} class="level" disabled={!unlocked} onClick={() => game.startLevel(level.id, faction)}>
+            <button key={level.id} class="level" disabled={!unlocked} onClick={() => void game.startLevel(level.id, faction)}>
               <span class="level-num">{i + 1}</span>
               <span class="level-name">
                 <strong>{level.name}</strong>
                 <small>{unlocked ? `${level.waves.length} waves · ${level.cols}×${level.rows}` : 'Locked'}</small>
               </span>
-              <span class="stars">{unlocked ? stars(earned) : '🔒'}</span>
+              <span class="stars">
+                {unlocked ? stars(earned) : '🔒'}
+                {isVerified && <span class="verified" title="Verified by the server"> ✓</span>}
+              </span>
             </button>
           );
         })}
@@ -92,7 +105,7 @@ function Levels({ faction, progress }: { faction: FactionId; progress: Record<st
   );
 }
 
-function Game({ hud }: { hud: Hud }) {
+function Game({ hud, verify }: { hud: Hud; verify: VerifyStatus }) {
   const over = hud.outcome !== 'playing';
   const hpPct = Math.round((hud.baseHp * 100) / hud.baseMax);
   return (
@@ -189,6 +202,7 @@ function Game({ hud }: { hud: Hud }) {
             ) : (
               <p>Fell on wave {hud.wave} of {hud.waves}.</p>
             )}
+            {VERIFY_TEXT[verify] && <p class={`verify ${verify}`}>{VERIFY_TEXT[verify]}</p>}
             <div class="result-actions">
               {hud.outcome === 'won' && hud.hasNext && <button class="primary" onClick={game.nextLevel}>Next level</button>}
               <button class={hud.outcome === 'won' && hud.hasNext ? '' : 'primary'} onClick={game.retry}>

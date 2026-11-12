@@ -26,9 +26,13 @@ milliseconds and see for itself what happened.
 - **Saves are command logs, not state dumps.** Resuming re-simulates, so a save cannot
   contain an impossible state (extra supplies, free towers) — only moves that were legal.
 
-What is *not* protected yet: star counts and level unlocks live in local storage and can
-be edited. That harms no one while the game is single-player and offline, and it becomes
-a problem the moment results are shared (leaderboards, the P2P unlock, ranked play).
+- **Replay verification is implemented** ([Server](06-server.md)): the server issues the
+  seed, the client submits its signed command log, and the server replays it to derive
+  outcome and stars. Verified stars are stored per anonymous device key.
+
+What is *not* protected yet: the level unlocks the client shows still come from local
+storage and can be edited. Nothing shared depends on them today; the multiplayer unlock
+will be gated on server-verified progress instead.
 
 ## Threats and answers
 
@@ -48,8 +52,8 @@ a problem the moment results are shared (leaderboards, the P2P unlock, ranked pl
 
 ### Replay verification service
 
-A small stateless function (same hosting options as the signaling relay) that imports
-`src/core` and `src/content` directly:
+A small service that imports `src/core` and `src/content` directly (built; see
+[Server](06-server.md)):
 
 1. `POST /attempt` → server returns a random seed and an attempt id.
 2. Client plays; the command log accumulates (it already does).
@@ -94,5 +98,5 @@ progress needs to move between devices.
 - Determinism stays a hard requirement for every future system, including AI
   controllers (they must draw randomness from the state RNG).
 - Any change to rules or numbers bumps `contentVersion`.
-- A verification backend is needed before leaderboards or public P2P: milestone M8, or
-  pulled forward into M7 if P2P ships with rankings.
+- The verification backend exists for single-player results. P2P result signing, the
+  multiplayer unlock token and the signaling relay are added to it in M7.
