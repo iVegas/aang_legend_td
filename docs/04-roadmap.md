@@ -39,6 +39,7 @@ towers and four units, ahead of the M3 plan, because the content is data-driven.
 
 - Seed issue, signed result submission, server-side replay, verified progress per
   anonymous device key; client integration with offline fallback and retry queue.
+- Docker Compose setup for running game, server and checks without host installs.
 - Still to do: host it, gate unlocks on verified progress, P2P result signing,
   signaling relay.
 

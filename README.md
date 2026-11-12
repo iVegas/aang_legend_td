@@ -6,7 +6,22 @@ Pick a faction, wall off the map, and hold your base against the other three.
 > **Status:** Defense mode is playable (roadmap M0–M2): four selectable nations, four levels,
 > placeholder art. Attack, Two-way and P2P modes are designed but not built.
 
-## Run it
+## Run it in Docker (nothing installed on the host)
+
+```sh
+docker compose up --build          # game + verification server → http://localhost:8080
+docker compose --profile dev up    # live-reload dev server      → http://localhost:5173
+docker compose run --rm check      # lint, typecheck, tests, both builds
+docker compose down -v             # stop and delete all data
+```
+
+Dependencies live only inside the images and a named volume. Set `WEB_PORT` or
+`DEV_PORT` if 8080 or 5173 is taken. Use `localhost` rather than a LAN address:
+browsers only allow the service worker and result signing on a secure origin.
+
+## Run it with Node
+
+Needs Node 22.13 or newer (26 is what CI and the images use).
 
 ```sh
 npm install

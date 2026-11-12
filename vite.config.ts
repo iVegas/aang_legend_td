@@ -27,5 +27,11 @@ export default defineConfig({
       workbox: { globPatterns: ['**/*.{js,css,html,svg,png,webmanifest}'] },
     }),
   ],
+  server: {
+    // In the dev container the API is reached through the dev server, same-origin.
+    proxy: process.env.API_PROXY
+      ? { '/api': { target: process.env.API_PROXY, changeOrigin: true, rewrite: (path) => path.replace(/^\/api/, '') } }
+      : undefined,
+  },
   test: { include: ['tests/**/*.test.ts'] },
 });

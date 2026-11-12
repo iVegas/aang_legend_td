@@ -25,5 +25,8 @@
   "dependencies": {
     "pixi.js": "^8.23.0",
     "preact": "^11.2.0"
+  },
+  "engines": {
+    "node": ">=22.13"
   }
 }

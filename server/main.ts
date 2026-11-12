@@ -81,7 +81,8 @@ const server = createServer(async (req, res) => {
   }
   res.writeHead(status, headers);
   res.end(body === undefined ? undefined : JSON.stringify(body));
-  if (!QUIET) console.log(JSON.stringify({ method, path, status, ms: Math.round((performance.now() - started) * 10) / 10 }));
+  // Health probes arrive every few seconds; logging them would bury everything else.
+  if (!QUIET && path !== '/v1/health') console.log(JSON.stringify({ method, path, status, ms: Math.round((performance.now() - started) * 10) / 10 }));
 });
 
 // Abandoned attempts are the only data that grows without a result; sweep them occasionally.

@@ -1,0 +1,65 @@
+# Everything runs in containers; nothing is installed on the host.
+#
+#   docker compose up --build            production-like build   → http://localhost:8080
+#   docker compose --profile dev up      live-reload dev server  → http://localhost:5173
+#   docker compose run --rm check        lint, typecheck, tests, both builds
+#   docker compose down -v               stop and delete all data
+#
+# Ports can be changed with WEB_PORT / DEV_PORT.
+
+name: legend-td
+
+services:
+  # Verification server. Not published to the host: reached through /api on web or dev.
+  server:
+    build:
+      context: .
+      target: server
+    environment:
+      TRUST_PROXY: "1"
+    volumes:
+      - data:/data
+    restart: unless-stopped
+
+  # The built PWA, served by nginx.
+  web:
+    build:
+      context: .
+      target: web
+    ports:
+      - "${WEB_PORT:-8080}:80"
+    depends_on:
+      server:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # Vite dev server with hot reload. Source is mounted from the host; node_modules
+  # stays inside a named volume so the host directory is never touched.
+  dev:
+    profiles: [dev]
+    build:
+      context: .
+      target: dev
+    environment:
+      VITE_API_URL: /api
+      API_PROXY: http://server:8787
+    ports:
+      - "${DEV_PORT:-5173}:5173"
+    volumes:
+      - .:/app
+      - node_modules:/app/node_modules
+    depends_on:
+      server:
+        condition: service_healthy
+
+  # One-shot quality gate, same steps as CI.
+  check:
+    profiles: [check]
+    build:
+      context: .
+      target: dev
+    command: sh -c "npm run lint && npm run typecheck && npm test && npm run build && npm run build:server"
+
+volumes:
+  data:
+  node_modules:

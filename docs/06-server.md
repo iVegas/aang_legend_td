@@ -7,7 +7,7 @@ with the same simulation code the client runs. Design rationale is in
 ## Shape
 
 - **One file to deploy.** `npm run build:server` bundles the server and the shared
-  simulation into `dist-server/server.js` (~50 kB). It needs Node 22+ and nothing else:
+  simulation into `dist-server/server.js` (~50 kB). It needs Node 22.13+ and nothing else:
   no `node_modules`, no native add-ons.
 - **One file of data.** SQLite through Node's built-in driver, in WAL mode. Backup is
   copying the file.
@@ -26,6 +26,13 @@ server/
 ```
 
 ## Run
+
+With Docker, `docker compose up --build` starts the server together with the game; nginx
+serves the client and proxies `/api/` to the server, so both share one origin and no CORS
+setup is needed. The database lives in the `data` volume. The server image is the
+bundled file on `node:26-alpine`, running as a non-root user with a health check.
+
+Without Docker:
 
 ```sh
 npm run server                      # build + start on :8787
@@ -128,8 +135,8 @@ worker pool without touching the routes.
 
 - **Single process.** The rate limiter is in memory and SQLite is a local file. To run
   several instances, move both behind shared services via the same interfaces.
-- **`node:sqlite` is marked experimental in Node 22** and prints a warning at start. It
-  works; pin the Node version in deployment.
+- **`node:sqlite` is marked experimental in Node 22** and prints a warning at start. On
+  Node 26, which the images use, it starts without one.
 - **Level unlocks in the client still read local progress.** The server records verified
   stars and the menu marks them with ✓, but nothing is gated on them yet — that arrives
   with the multiplayer unlock.
