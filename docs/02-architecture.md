@@ -44,7 +44,8 @@ flowchart TD
 ```
 
 The hard rule: **`core` imports nothing from the browser** — no DOM, no `Date.now()`, no
-`Math.random()`, no PixiJS. Everything else depends on `core`; `core` depends only on
+`Math.random()`, no PixiJS. It is enforced twice: `tsconfig.core.json` typechecks `core`
+and `content` without the DOM library, and ESLint bans the imports and the two calls. Everything else depends on `core`; `core` depends only on
 `content` types.
 
 ## Repository layout
@@ -65,14 +66,15 @@ The hard rule: **`core` imports nothing from the browser** — no DOM, no `Date.
 │  │  ├─ fixed.ts          # fixed-point helpers
 │  │  └─ hash.ts           # state checksum
 │  ├─ content/             # data packs: factions, towers, units, levels
-│  ├─ controllers/         # human, ai-defender, ai-attacker, remote
-│  ├─ render/              # PixiJS scene, sprites, effects, camera
+│  ├─ game/                # session (fixed-step loop, command log, save) and
+│  │                       #   controller (input → commands, HUD publishing)
+│  ├─ render/              # PixiJS scene, sprites, effects
 │  ├─ ui/                  # Preact screens and HUD
-│  ├─ input/               # pointer gestures → build intents
-│  ├─ net/                 # signaling, transport, lockstep
-│  ├─ platform/            # service worker reg, storage, lifecycle, audio
-│  └─ main.ts
-└─ tests/
+│  ├─ platform/            # storage, audio
+│  ├─ controllers/         # (planned) ai-defender, ai-attacker, remote
+│  ├─ net/                 # (planned) signaling, transport, lockstep
+│  └─ main.tsx
+└─ tests/                  # core tests + a reference bot that plays full levels
 ```
 
 ## The simulation (`core`)
@@ -109,8 +111,9 @@ type Command =
   | { type: 'sellStructure'; cell: CellIndex }
   | { type: 'upgradeTower'; cell: CellIndex }
   | { type: 'setTargeting'; cell: CellIndex; mode: TargetingMode }
-  | { type: 'spawnUnit'; kind: UnitId; column: number }
   | { type: 'startWave' }
+  // planned with Attack mode:
+  | { type: 'spawnUnit'; kind: UnitId; column: number }
   | { type: 'useAbility'; ability: AbilityId; cell: CellIndex };
 ```
 
@@ -118,8 +121,9 @@ The sim validates each command against the current state (enough supplies, cell 
 path not sealed, player is allowed that command in this mode) and silently drops invalid
 ones. Validation inside the sim — not in the UI — is what keeps peers in agreement.
 
-A match is fully described by `{ contentVersion, levelId, seed, commands[] }`. That gives
-replays, bug reproduction and a save format for free.
+A match is fully described by `{ contentVersion, levelId, faction, seed, commands[] }`.
+That gives replays, bug reproduction, the save format (resume re-simulates the log) and
+the basis for [result verification](05-anti-cheat.md).
 
 ### Tick pipeline
 
@@ -166,14 +170,15 @@ A controller is anything that produces commands for a player slot:
 | Controller | Used in |
 | --- | --- |
 | `HumanController` | Every mode — turns UI intents into commands |
-| `WaveScriptController` | Defense — plays the level's authored waves as `spawnUnit` commands |
+| Wave system (in `core`) | Defense — expands the level's authored waves into a spawn queue using the state RNG |
 | `AttackerAI` | Two-way vs AI — budgeted, reactive spawning |
 | `DefenderAI` | Attack and Two-way vs AI — builds from authored layouts plus heuristics |
 | `RemoteController` | P2P — commands arriving from the peer |
 
-Modes are just different controller assignments on the same sim, which is why the
-attacker's actions are commands from the first milestone even though only a script uses
-them at first.
+Modes are just different controller assignments on the same sim. In the current build
+scripted waves are a system inside `core` (they need the seeded RNG and no outside
+input); a `spawnUnit` command for human, AI and remote attackers is added with Attack
+mode and calls the same spawn function.
 
 ## Rendering
 
@@ -237,6 +242,7 @@ signaling options and failure handling are in
 - **Pathfinding property tests:** random grids; the seal check never allows an
   unreachable spawn; unit routes are never longer than BFS distance.
 - **Playwright smoke test:** boot the PWA at a phone viewport, place a tower, run a wave.
+  Done by hand so far; not yet a committed test or a CI step.
 
 ## Performance budget
 

@@ -8,57 +8,50 @@ Milestones are ordered so that each one ends with something playable on a phone.
 | --- | --- | --- |
 | M0 | Project skeleton | Installable empty PWA deployed from CI |
 | M1 | Walking skeleton | Grid on screen, units path from top to bottom around walls |
-| M2 | Defense MVP | One faction vs one enemy faction, 3 towers, waves, win/lose |
-| M3 | Four factions | All walls, towers and units; faction select; Defense campaigns |
+| M2 | Defense MVP | Towers, waves, economy, win/lose, save/resume |
+| M3 | Four factions | Real art; remaining mechanics; full Defense campaigns |
 | M4 | Destructible structures | Structure HP, siege and anti-tower units, repair |
 | M5 | Attack mode | Attacker HUD, defender AI, Attack campaigns |
 | M6 | Two-way mode | Two boards, income economy, combined AI |
 | M7 | P2P multiplayer | Lockstep over WebRTC, asymmetric duel, then two-way duel |
+| M8 | Verified results | Replay-verification service, signed unlocks and match results |
 
-## Initial tasks
+**M0–M2 are implemented.** All four nations are already selectable with their three
+towers and four units, ahead of the M3 plan, because the content is data-driven.
 
-### M0 — Project skeleton
+## Done in M0–M2
 
-- [ ] Scaffold Vite + TypeScript (strict), ESLint, Prettier.
-- [ ] Add Vitest; add a lint rule or test forbidding browser/Pixi imports inside `src/core`.
-- [ ] Add `vite-plugin-pwa`: manifest (standalone, portrait), icons, service worker with
-      update prompt.
-- [ ] App shell: full-screen canvas + DOM overlay, safe-area insets, `touch-action: none`.
-- [ ] GitHub Actions: lint, typecheck, test, build; deploy preview to a static host.
-- [ ] Verify install-to-home-screen and offline launch on Android Chrome and iOS Safari.
+- Vite + strict TypeScript, ESLint, Vitest; CI runs lint, typecheck, tests and build.
+- PWA: manifest, icons, service worker with an update prompt, offline play.
+- Deterministic core: fixed-point maths, seeded RNG, state hash, command validation,
+  BFS distance field with seal check, 20 Hz fixed timestep with render interpolation.
+- Combat: single, splash, pulse and chain attacks; slow, stun, burn and knockback;
+  armour, flying units, three targeting modes, three tower tiers.
+- Economy: costs, 70 % sell refund, bounties, wave bonus, early-call bonus.
+- Four levels (one 7×11 tutorial, three 9×15), stars, per-nation level unlocks.
+- Touch input: tap/drag walls, drag-to-aim towers, rejection feedback with reasons.
+- Autosave at wave boundaries and on backgrounding; resume replays the command log.
+- Synthesised sound effects with mute, auto-pause when hidden, screen wake lock.
+- Tests: pathfinding properties, command rules, determinism, replay-from-log, and a
+  reference bot that plays every level with every nation.
 
-### M1 — Walking skeleton
+## Not done yet from the M0–M2 list
 
-- [ ] `core/fixed.ts`, `core/rng.ts` (seeded PRNG), `core/hash.ts`.
-- [ ] `GameState`, grid model, cell types; level loader for a hard-coded 9×15 level.
-- [ ] BFS distance field + seal check, with property tests.
-- [ ] Command type, command queue, validation for `placeStructure` / `sellStructure`.
-- [ ] Fixed-timestep loop (20 Hz) with render interpolation and background-tab clamp.
-- [ ] Movement system: units follow the distance field, re-route on grid change.
-- [ ] `WaveScriptController` emitting `spawnUnit` commands from a script.
-- [ ] PixiJS renderer: grid, placeholder sprites for wall and unit, responsive cell sizing.
-- [ ] Input: tap to place wall, drag to paint walls, rejection feedback.
-- [ ] Determinism test: recorded command log replays to the same hash.
+- [ ] Enable GitHub Pages (Settings → Pages → Source: GitHub Actions) so the deploy
+      workflow can publish.
+- [ ] Install and offline check on real Android Chrome and iOS Safari devices.
+- [ ] Human playtest and balance pass. Numbers were only tuned against the reference
+      bot, which beats the first two levels and struggles on the two obstacle levels.
+- [ ] Commit the Playwright smoke test and run it in CI.
+- [ ] Prettier.
 
-### M2 — Defense MVP
+## Next: M3
 
-- [ ] Content schema (`FactionDef`, `TowerDef`, `UnitDef`, `WaveDef`, `LevelDef`).
-- [ ] Targeting system (first / last / strongest / closest) and combat system.
-- [ ] Attack types: single, splash; status effects: slow.
-- [ ] Projectiles, deaths, bounties, base HP, win/lose.
-- [ ] Economy: supplies, costs, sell refund, wave bonus, early-call bonus.
-- [ ] HUD: build bar, supplies, base HP, wave counter, speed/pause, tower radial menu.
-- [ ] One faction's three towers and one enemy faction's units, placeholder art.
-- [ ] Three levels + a tutorial; autosave at wave boundaries; resume on relaunch.
-- [ ] Sound effects and mute; auto-pause on background.
-- [ ] Playtest on real phones; tune grid size and tap targets.
-
-### M3 and later
-
-Broken down when M2 is playable — the M2 playtest will change the plan. Known large
-items: remaining attack types (chain, cone, pulse, knockback, pull), flying units,
-faction art atlases, campaign map and stars, structure HP, AI controllers, the second
-board for Two-way, `net/` lockstep and signaling.
+- [ ] Art direction decision, then faction sprite atlases replacing placeholder shapes.
+- [ ] Cone attack (Flame Jet), pull (Cyclone), wall side-effects (ice slow, iron burn).
+- [ ] 10 levels per campaign; larger boards with pan/zoom.
+- [ ] Campaign map, star-gated tower tiers.
+- [ ] Music; haptics pass; settings screen.
 
 ## Open questions
 
@@ -81,6 +74,10 @@ Decisions needed from the project owner; the docs assume the default in bold.
    sides.
 9. **Art direction.** Pixel art, flat vector, or hand-painted? Decides atlas sizes and
    the download budget.
-10. **IP.** The setting is someone else's property. Stay strictly non-commercial fan
-    project, or plan an original reskin before any public release? The content-pack
-    split keeps both options open.
+10. ~~IP.~~ **Decided:** use the known world (nations, bending, creatures) for reach,
+    with no named characters or plot from the source. Follow-up: the working title
+    contains a main character's name, which sits oddly with that rule — the in-game
+    title currently reads "Legend TD".
+11. **Verification backend.** Cheat prevention needs a small server
+    ([Anti-cheat](05-anti-cheat.md)). Where should it run, and is anonymous device
+    identity enough or are accounts wanted?

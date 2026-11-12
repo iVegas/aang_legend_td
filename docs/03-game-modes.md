@@ -25,8 +25,9 @@ flowchart LR
   (to be decided: or any faction once P2P is unlocked — simpler, more generous).
 
 The point of the gate is that nobody enters multiplayer without having learned both
-halves of the game. Progress is stored locally and is therefore trivially editable; that
-is acceptable, because the gate is a teaching device, not an anti-cheat measure.
+halves of the game. Progress is stored on the device, so today the gate can be edited
+past; once results are verified server-side it becomes a signed unlock. See
+[Anti-cheat](05-anti-cheat.md).
 
 ---
 
@@ -189,6 +190,7 @@ a clear "could not connect directly" message when it would have been needed.
 - **Cheating:** lockstep makes stat-hacking pointless — a modified client simply
   desyncs. It does not hide information: both clients hold the full state, so fog of
   war cannot be enforced between peers. Design P2P formats around open information.
+  Disputed results, stalling and bots are covered in [Anti-cheat](05-anti-cheat.md).
 - **Fairness:** both peers must run the same build; the service worker update prompt
   runs before matchmaking, not during.
 

@@ -2,6 +2,13 @@
 
 Everything numeric in this document is a starting point for playtesting, not a final value.
 
+## Setting
+
+The world of the four nations, used as a backdrop: nations, bending styles, architecture
+and creatures (badgermoles, komodo rhinos, sky bison, winged lemurs…). **No named
+characters from the source material and no retelling of its plot** — units are generic
+soldiers, benders and beasts. Recognisable world, original cast.
+
 ## Core loop (Defense mode)
 
 1. **Choose a faction.** It decides your wall style, your three towers, and which three
@@ -145,8 +152,10 @@ matchup is unwinnable.
 
 ## Structures and damage (phased)
 
-- **Phase 1 (MVP):** walls and towers are indestructible; siege and ranged-vs-tower unit
-  abilities are disabled. This keeps the first playable build to pure maze-and-shoot.
+- **Phase 1 (MVP) — implemented:** walls and towers are indestructible; siege, healing and
+  ranged-vs-tower unit abilities are disabled, so units differ only in health, speed,
+  armour, flight and numbers. Wall side-effects (ice slow, iron burn) are not in yet.
+  The Flame Jet's cone is approximated by a short-range splash.
 - **Phase 2:** structures get HP; siege units and tower-harassing units come online;
   repair is added. This is a prerequisite for Attack mode being interesting.
 
@@ -155,7 +164,10 @@ matchup is unwinnable.
 - Tap a build-bar item, then tap a cell to place. Invalid cells (occupied, would seal the
   path) flash red and show the reason.
 - Drag across cells with the wall tool selected to paint a line of walls.
-- Tap a placed tower to open a radial menu: upgrade, sell, targeting priority.
+- Tap a placed structure to swap the build bar for its panel: upgrade, sell, targeting
+  priority (first / strongest / closest). A bottom panel was chosen over a radial menu so
+  the buttons never cover the board or fall off a screen edge.
+- Towers are placed on release, so the range preview can be dragged into position first.
 - Two-finger pan/pinch only on levels larger than the screen.
 - Everything reachable with one thumb; primary actions in the bottom third of the screen.
 
