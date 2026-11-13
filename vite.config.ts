@@ -9,8 +9,8 @@ export default defineConfig({
       registerType: 'prompt',
       includeAssets: ['icon.svg', 'apple-touch-icon.png'],
       manifest: {
-        name: 'Aang Legend TD',
-        short_name: 'Legend TD',
+        name: 'Aether Nations TD',
+        short_name: 'Aether Nations',
         description: 'Tower defense in the world of the four nations.',
         display: 'standalone',
         orientation: 'portrait',

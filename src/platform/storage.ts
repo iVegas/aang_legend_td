@@ -1,6 +1,7 @@
 // Minimal key-value store on IndexedDB. Falls back to memory when storage is unavailable
 // (private windows, blocked site data) so the game still runs.
 
+// Kept from the project's working title: renaming it would orphan players' saved progress.
 const DB = 'legend-td';
 const STORE = 'kv';
 const memory = new Map<string, unknown>();

@@ -6,26 +6,41 @@ export interface BuildItem {
   kind: string;
   name: string;
   blurb: string;
+  stats: string;
   cost: number;
   color: number;
-  affordable: boolean;
+  /** Why it cannot be built here right now, or null when it can. */
+  blocked: string | null;
 }
 
-export interface Selection {
-  cell: number;
+/** What the contextual menu knows about the structure on its cell. */
+export interface StructureInfo {
   name: string;
+  blurb: string;
   isWall: boolean;
   tier: number;
   stats: string;
-  upgradeCost: number | null;
-  canUpgrade: boolean;
-  sellValue: number;
   hp: number;
   maxHp: number;
+  targeting: TargetingMode;
+  upgradeCost: number | null;
+  canUpgrade: boolean;
   /** 0 when undamaged. */
   repairCost: number;
   canRepair: boolean;
-  targeting: TargetingMode;
+  sellValue: number;
+}
+
+/** Contextual menu anchored to a board cell. */
+export interface CellMenu {
+  cell: number;
+  /** Cell rectangle in viewport pixels. */
+  x: number;
+  y: number;
+  size: number;
+  /** Things that can be built on this cell: everything on free ground, towers only on a wall. */
+  items: BuildItem[];
+  structure: StructureInfo | null;
 }
 
 export interface Hud {
@@ -46,17 +61,24 @@ export interface Hud {
   /** Seconds of 3× burst remaining, 0 when not bursting. */
   burst: number;
   paused: boolean;
-  tool: string | null;
-  items: BuildItem[];
-  selection: Selection | null;
+  menu: CellMenu | null;
 }
 
+export type Screen = 'splash' | 'home' | 'nations' | 'levels' | 'game';
+export type VerifyStatus = 'none' | 'local' | 'pending' | 'verified' | 'rejected' | 'queued';
+
 export interface AppState {
-  screen: 'menu' | 'game';
+  screen: Screen;
   faction: FactionId | null;
   /** Best stars per `${faction}:${levelId}`. */
   progress: Record<string, number>;
   muted: boolean;
+  vibration: boolean;
+  /** Whether this device can vibrate at all; the setting is hidden when it cannot. */
+  canVibrate: boolean;
+  settingsOpen: boolean;
+  /** Multiplayer appears on the home screen once both single-player sides are completed. */
+  multiplayerUnlocked: boolean;
   resume: { levelId: string; faction: FactionId } | null;
   hud: Hud | null;
   toast: string | null;
@@ -67,13 +89,15 @@ export interface AppState {
   verify: VerifyStatus;
 }
 
-export type VerifyStatus = 'none' | 'local' | 'pending' | 'verified' | 'rejected' | 'queued';
-
 let state: AppState = {
-  screen: 'menu',
+  screen: 'splash',
   faction: null,
   progress: {},
   muted: false,
+  vibration: true,
+  canVibrate: false,
+  settingsOpen: false,
+  multiplayerUnlocked: false,
   resume: null,
   hud: null,
   toast: null,

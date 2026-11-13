@@ -22,7 +22,7 @@ RUN npm run build && npm run build:server
 # ── server: one JS file on a bare Node image, no node_modules ──────────
 FROM node:${NODE_VERSION}-alpine AS server
 WORKDIR /app
-ENV NODE_ENV=production PORT=8787 DB_PATH=/data/legend-td.sqlite
+ENV NODE_ENV=production PORT=8787 DB_PATH=/data/aether-nations.sqlite
 COPY --from=build /app/dist-server/server.js ./server.js
 RUN mkdir /data && chown node:node /data
 USER node

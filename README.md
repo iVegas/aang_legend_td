@@ -1,4 +1,4 @@
-# Aang Legend TD
+# Aether Nations TD
 
 A mobile-first PWA tower defense game set in the world of the four nations.
 Pick a faction, wall off the map, and hold your base against the other three.

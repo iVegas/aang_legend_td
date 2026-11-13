@@ -45,6 +45,14 @@ towers and four units, ahead of the M3 plan, because the content is data-driven.
 - Balance is again bot-checked only, and the bot now loses most of level 2 as well as
   levels 3–4. A human balance pass is the most valuable next step.
 
+## Done: interface rework
+
+- Named **Aether Nations TD**; splash screen, home screen, settings (sound, vibration).
+- In game: single bottom bar with a centred wave control, pause menu, and contextual
+  menus on the tapped cell replacing the build bar and the structure panel.
+- Dropped with the build bar: dragging to paint a line of walls and dragging a tower's
+  range preview before placing. Range is now previewed by holding a build option.
+
 ## Done: verification server
 
 - Seed issue, signed result submission, server-side replay, verified progress per
@@ -93,9 +101,8 @@ Decisions needed from the project owner; the docs assume the default in bold.
 9. **Art direction.** Pixel art, flat vector, or hand-painted? Decides atlas sizes and
    the download budget.
 10. ~~IP.~~ **Decided:** use the known world (nations, bending, creatures) for reach,
-    with no named characters or plot from the source. Follow-up: the working title
-    contains a main character's name, which sits oddly with that rule — the in-game
-    title currently reads "Legend TD".
+    with no named characters or plot from the source. The game is named
+    **Aether Nations TD**, which carries no character name.
 11. **Verification backend.** Built ([Server](06-server.md)). Open: where to host it,
     and whether anonymous device identity is enough or accounts are wanted (progress
     does not currently follow a player to a new device).

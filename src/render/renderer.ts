@@ -128,6 +128,18 @@ export class Renderer {
     return y * s.cols + x;
   }
 
+  /** Position and size of a cell in viewport pixels, for anchoring DOM menus to it. */
+  cellRect(cell: number): { x: number; y: number; size: number } | null {
+    const s = this.state;
+    if (!s || !this.cellPx || cell < 0) return null;
+    const rect = this.app.canvas.getBoundingClientRect();
+    return {
+      x: Math.round(rect.left + this.board.position.x + (cell % s.cols) * this.cellPx),
+      y: Math.round(rect.top + this.board.position.y + Math.floor(cell / s.cols) * this.cellPx),
+      size: this.cellPx,
+    };
+  }
+
   onEvent(e: SimEvent): void {
     const s = this.state;
     if (!s) return;

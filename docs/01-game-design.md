@@ -201,21 +201,34 @@ rather than pulls.
 
 ## Controls (touch-first)
 
-- Tap a build-bar item, then tap a cell to place. Invalid cells (occupied, would seal the
-  path) flash red and show the reason.
-- Drag across cells with the wall tool selected to paint a line of walls.
-- Tap a placed structure to swap the build bar for its panel: upgrade, repair, sell, targeting
-  priority (first / strongest / closest). A bottom panel was chosen over a radial menu so
-  the buttons never cover the board or fall off a screen edge.
-- Towers are placed on release, so the range preview can be dragged into position first.
-- A tower can be built directly on one of your walls: the wall is converted in place for
-  the tower's price, and what the wall cost stays invested (it comes back on sale).
-- Double-tap a damaged structure to repair it without opening its panel.
-- The wave indicator in the top bar is also the start button, so it stays reachable
-  while a structure's panel is open. The speed button cycles 1× → 2× → a five-second
-  3× burst that drops back to 2×.
-- Two-finger pan/pinch only on levels larger than the screen.
-- Everything reachable with one thumb; primary actions in the bottom third of the screen.
+The board takes the whole screen above a single bottom bar, so everything is in thumb
+reach and nothing is permanently covered.
+
+- **Tap a free cell** to open a contextual menu at that cell with the wall and the three
+  towers. Tap an option to build. An option that cannot be built here (not enough
+  supplies, would seal the path, enemy in the way) is dimmed and says why when tapped.
+- **Press and hold an option** to read its description and stats and preview its range
+  on the board; releasing does not build.
+- **Tap a wall** for the same menu with towers only — choosing one converts the wall in
+  place for the tower's price, and what the wall cost stays invested — plus Repair and
+  Sell for the wall itself.
+- **Tap a tower** for Target (first / strongest / closest), Upgrade, Repair and Sell.
+  Buttons keep the same size and position whatever is selected.
+- **Double-tap** a damaged structure to repair it at once.
+- Tap the same free cell again, or anywhere outside the build area, to dismiss the menu.
+- **Bottom bar:** base health and supplies on the left; the wave indicator in the
+  centre, which is also the start button (with countdown and early-start bonus); speed
+  and pause on the right. Speed cycles 1× → 2× → a five-second 3× burst that drops back
+  to 2×.
+- **Pause** opens a menu: Resume, Settings, Restart level, Exit to home.
+
+## Screens
+
+- **Splash** for three seconds at launch.
+- **Home:** the selected nation (tap to change), Continue when a match is saved, Play /
+  Select level, Multiplayer once it is unlocked, Settings.
+- **Settings:** sound, and vibration on devices that support it. Reachable from Home and
+  from the pause menu.
 
 ## Progression
 

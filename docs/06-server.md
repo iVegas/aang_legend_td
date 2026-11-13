@@ -38,7 +38,7 @@ Without Docker:
 npm run server                      # build + start on :8787
 # or
 npm run build:server
-PORT=8787 DB_PATH=/var/lib/legend-td/data.sqlite node dist-server/server.js
+PORT=8787 DB_PATH=/var/lib/aether-nations/data.sqlite node dist-server/server.js
 ```
 
 Point the client at it at build time:
@@ -52,7 +52,7 @@ For local development copy `.env.example` to `.env.local`.
 | Variable | Default | Meaning |
 | --- | --- | --- |
 | `PORT` | `8787` | Listen port |
-| `DB_PATH` | `./legend-td.sqlite` | Database file |
+| `DB_PATH` | `./aether-nations.sqlite` | Database file |
 | `CORS_ORIGIN` | `*` | Allowed origin; set to the game's URL in production |
 | `TRUST_PROXY` | off | `1` to take the client address from `X-Forwarded-For` (only behind a proxy you control) |
 | `LOG` | on | `0` silences the per-request log line |

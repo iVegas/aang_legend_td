@@ -7,7 +7,7 @@
 #
 # Ports can be changed with WEB_PORT / DEV_PORT.
 
-name: legend-td
+name: aether-nations-td
 
 services:
   # Verification server. Not published to the host: reached through /api on web or dev.

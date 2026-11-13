@@ -1,13 +1,13 @@
 import { content, type FactionId, type TargetingMode } from '../content';
 import {
-  checkPlace, ONE, repairCost, sellValue, starsFor, structureAt, structureCost, TARGETING_MODES, TICKS_PER_SECOND, upgradeCost, WALL,
+  Cell, checkPlace, ONE, repairCost, sellValue, starsFor, structureAt, TARGETING_MODES, TICKS_PER_SECOND, upgradeCost, WALL,
   type PlaceError, type SimEvent,
 } from '../core';
 import * as api from '../platform/api';
 import { play, setMuted, unlockAudio } from '../platform/audio';
 import { load, remove, save } from '../platform/storage';
 import { Renderer } from '../render/renderer';
-import { getState, setState, type Hud, type Selection } from '../ui/store';
+import { getState, setState, type BuildItem, type CellMenu, type Hud, type Screen, type StructureInfo } from '../ui/store';
 import { Session, type SavedMatch } from './session';
 
 // Glue between the simulation, the renderer, input and the HUD store.
@@ -16,26 +16,35 @@ const SAVE_KEY = 'match';
 const PROGRESS_KEY = 'progress';
 const SETTINGS_KEY = 'settings';
 
-const REASONS: Record<PlaceError, string | null> = {
-  over: null,
-  bounds: null,
-  unknown: null,
-  occupied: null,
+const REASONS: Record<PlaceError, string> = {
+  over: 'The match is over',
+  bounds: "Can't build there",
+  unknown: "Can't build that",
+  occupied: 'Already built on',
   terrain: "Can't build there",
   unit: 'An enemy is in the way',
   funds: 'Not enough supplies',
   sealed: 'That would seal the path',
 };
 
+interface Settings {
+  muted: boolean;
+  vibration: boolean;
+  faction: FactionId | null;
+}
+
 let renderer: Renderer | null = null;
 let session: Session | null = null;
-let tool: string | null = null;
-let selected = -1;
+/** Cell the contextual menu is open on, or -1. */
+let menuCell = -1;
+/** Whether that cell held a structure when the menu opened, so the menu closes if it is destroyed. */
+let menuOnStructure = false;
+/** Build option being held for details; its range is previewed on the board. */
+let heldKind: string | null = null;
 let raf = 0;
 let lastFrame = 0;
 let lastHudKey = '';
 let toastTimer = 0;
-let pointerDown = false;
 let wakeLock: { release(): Promise<void> } | null = null;
 let starting = false;
 /** Speed to return to when the 3× burst runs out, and how much of it is left. */
@@ -53,13 +62,15 @@ export const progressKey = (faction: FactionId, levelId: string) => `${faction}:
 export async function boot(host: HTMLElement): Promise<void> {
   const [progress, settings, saved] = await Promise.all([
     load<Record<string, number>>(PROGRESS_KEY),
-    load<{ muted: boolean; faction: FactionId | null }>(SETTINGS_KEY),
+    load<Partial<Settings>>(SETTINGS_KEY),
     load<SavedMatch>(SAVE_KEY),
   ]);
   setMuted(settings?.muted ?? false);
   setState({
     progress: progress ?? {},
     muted: settings?.muted ?? false,
+    vibration: settings?.vibration ?? true,
+    canVibrate: typeof navigator.vibrate === 'function',
     faction: settings?.faction ?? null,
     resume: saved && saved.contentVersion === content.version ? { levelId: saved.levelId, faction: saved.faction } : null,
   });
@@ -67,12 +78,7 @@ export async function boot(host: HTMLElement): Promise<void> {
   void refreshVerified();
 
   renderer = await Renderer.create(host);
-  const canvas = renderer.canvas;
-  canvas.addEventListener('pointerdown', onPointerDown);
-  canvas.addEventListener('pointermove', onPointerMove);
-  canvas.addEventListener('pointerup', onPointerUp);
-  canvas.addEventListener('pointercancel', onPointerLeave);
-  canvas.addEventListener('pointerleave', onPointerLeave);
+  renderer.canvas.addEventListener('pointerdown', onPointerDown);
   window.addEventListener('resize', () => renderer?.layout());
   new ResizeObserver(() => renderer?.layout()).observe(host);
   document.addEventListener('visibilitychange', () => {
@@ -83,16 +89,25 @@ export async function boot(host: HTMLElement): Promise<void> {
   });
 }
 
-// ── Menu-level actions ──────────────────────────────────────────────────
+// ── Navigation and settings ─────────────────────────────────────────────
 
-function saveSettings(): void {
-  const { muted, faction } = getState();
-  void save(SETTINGS_KEY, { muted, faction });
+export function goTo(screen: Screen): void {
+  unlockAudio();
+  setState({ screen });
 }
 
-export function chooseFaction(faction: FactionId | null): void {
-  setState({ faction });
+function saveSettings(): void {
+  const { muted, vibration, faction } = getState();
+  void save(SETTINGS_KEY, { muted, vibration, faction } satisfies Settings);
+}
+
+export function chooseFaction(faction: FactionId): void {
+  setState({ faction, screen: 'home' });
   saveSettings();
+}
+
+export function openSettings(open: boolean): void {
+  setState({ settingsOpen: open });
 }
 
 export function toggleMute(): void {
@@ -100,6 +115,21 @@ export function toggleMute(): void {
   setMuted(muted);
   setState({ muted });
   saveSettings();
+  if (!muted) {
+    unlockAudio();
+    play('place');
+  }
+}
+
+export function toggleVibration(): void {
+  const vibration = !getState().vibration;
+  setState({ vibration });
+  saveSettings();
+  if (vibration) vibrate(40);
+}
+
+function vibrate(ms: number): void {
+  if (getState().vibration) navigator.vibrate?.(ms);
 }
 
 async function refreshVerified(): Promise<void> {
@@ -107,6 +137,8 @@ async function refreshVerified(): Promise<void> {
   const verified = await api.fetchVerified();
   if (verified) setState({ verified });
 }
+
+// ── Match lifecycle ─────────────────────────────────────────────────────
 
 export async function startLevel(levelId: string, faction: FactionId): Promise<void> {
   if (starting) return;
@@ -147,17 +179,17 @@ export function exitToMenu(): void {
   renderer?.setState(null);
   void wakeLock?.release().catch(() => {});
   wakeLock = null;
-  setState({ screen: 'menu', hud: null });
+  setState({ screen: 'home', hud: null, settingsOpen: false });
 }
 
 function begin(s: Session): void {
   session = s;
-  tool = null;
-  selected = -1;
+  menuCell = -1;
+  heldKind = null;
   baseSpeed = 1;
   burstLeftMs = 0;
   lastHudKey = '';
-  setState({ screen: 'game', faction: s.faction, verify: 'none' });
+  setState({ screen: 'game', faction: s.faction, verify: 'none', settingsOpen: false });
   // The canvas host only gets its size once the game screen is laid out.
   requestAnimationFrame(() => {
     renderer?.setState(s.state);
@@ -195,8 +227,19 @@ function loop(now: number): void {
     }
   }
   session.advance(dt, onSimEvent);
-  if (selected >= 0 && !structureAt(session.state, selected)) selected = -1;
-  renderer.overlay.selected = selected;
+
+  const { state } = session;
+  const onStructure = menuCell >= 0 && !!structureAt(state, menuCell);
+  // The structure the menu was about is gone (destroyed or sold): nothing left to act on.
+  if (menuCell >= 0 && (state.outcome !== 'playing' || (menuOnStructure && !onStructure))) closeMenu();
+
+  const o = renderer.overlay;
+  o.selected = onStructure ? menuCell : -1;
+  const building = menuCell >= 0 && (!onStructure || state.wallAt[menuCell] === 1);
+  o.hover = building && (!onStructure || heldKind) ? menuCell : -1;
+  o.hoverValid = !heldKind || checkPlace(state, heldKind, menuCell) === null;
+  o.hoverRange = heldKind && heldKind !== WALL ? content.towers[heldKind].tiers[0].range : 0;
+
   renderer.frame(session.alpha, dt);
   publishHud();
 }
@@ -211,7 +254,7 @@ function onSimEvent(e: SimEvent): void {
     case 'unitShot': play('shot'); break;
     case 'destroyed':
       play('leak');
-      navigator.vibrate?.(25);
+      vibrate(25);
       break;
     case 'shot': play('shot'); break;
     case 'pulse': play('pulse'); break;
@@ -219,7 +262,7 @@ function onSimEvent(e: SimEvent): void {
     case 'died': play('die'); break;
     case 'leak':
       play('leak');
-      navigator.vibrate?.(40);
+      vibrate(40);
       break;
     case 'waveStart': play('wave'); break;
     case 'waveCleared':
@@ -269,6 +312,8 @@ async function verify(s: Session): Promise<void> {
   if (session === s) setState({ verify: result.status === 'offline' ? 'queued' : result.status });
 }
 
+// ── HUD ─────────────────────────────────────────────────────────────────
+
 function describe(kind: string, tier: number): string {
   if (kind === WALL) return 'Blocks the path';
   const def = content.towers[kind];
@@ -277,33 +322,55 @@ function describe(kind: string, tier: number): string {
   return `Dmg ${t.damage} · Range ${(t.range / ONE).toFixed(1)} · ${rate}/s`;
 }
 
+function buildMenu(): CellMenu | null {
+  if (!session || !renderer || menuCell < 0) return null;
+  const rect = renderer.cellRect(menuCell);
+  if (!rect) return null;
+  const { state } = session;
+  const faction = content.factions[state.player.faction];
+  const st = structureAt(state, menuCell);
+
+  const option = (kind: string, name: string, blurb: string, cost: number, color: number): BuildItem => {
+    const error = checkPlace(state, kind, menuCell);
+    return { kind, name, blurb, stats: describe(kind, 0), cost, color, blocked: error ? REASONS[error] : null };
+  };
+  const items: BuildItem[] = [];
+  if (!st) items.push(option(WALL, faction.wall.name, 'Blocks the path', faction.wall.cost, faction.wall.color));
+  if (!st || st.kind === WALL) {
+    for (const id of faction.towers) {
+      const def = content.towers[id];
+      items.push(option(id, def.name, def.blurb, def.tiers[0].cost, def.color));
+    }
+  }
+
+  let structure: StructureInfo | null = null;
+  if (st) {
+    const isWall = st.kind === WALL;
+    const upgrade = upgradeCost(state, st.cell) ?? null;
+    const repair = repairCost(state, st.cell);
+    structure = {
+      name: isWall ? faction.wall.name : content.towers[st.kind].name,
+      blurb: isWall ? 'Blocks the path' : content.towers[st.kind].blurb,
+      isWall,
+      tier: st.tier,
+      stats: describe(st.kind, st.tier),
+      hp: st.hp,
+      maxHp: st.maxHp,
+      targeting: st.targeting,
+      upgradeCost: upgrade,
+      canUpgrade: upgrade !== null && state.player.supplies >= upgrade,
+      repairCost: repair,
+      canRepair: repair > 0 && state.player.supplies >= repair,
+      sellValue: sellValue(state, st.cell),
+    };
+  }
+  return { cell: menuCell, ...rect, items, structure };
+}
+
 function publishHud(): void {
   if (!session) return;
   const { state } = session;
-  const faction = content.factions[state.player.faction];
   const levelIndex = content.levels.findIndex((l) => l.id === session!.levelId);
-
-  let selection: Selection | null = null;
-  const st = selected >= 0 ? structureAt(state, selected) : undefined;
-  if (st) {
-    const cost = upgradeCost(state, st.cell) ?? null;
-    selection = {
-      cell: st.cell,
-      name: st.kind === WALL ? faction.wall.name : content.towers[st.kind].name,
-      isWall: st.kind === WALL,
-      tier: st.tier,
-      stats: describe(st.kind, st.tier),
-      upgradeCost: cost,
-      canUpgrade: cost !== null && state.player.supplies >= cost,
-      sellValue: sellValue(state, st.cell),
-      hp: st.hp,
-      maxHp: st.maxHp,
-      repairCost: repairCost(state, st.cell),
-      canRepair: state.player.supplies >= repairCost(state, st.cell),
-      targeting: st.targeting,
-    };
-  }
-
   const hud: Hud = {
     levelName: state.level.name,
     hint: state.level.hint ?? '',
@@ -320,15 +387,7 @@ function publishHud(): void {
     speed: session.speed,
     burst: Math.ceil(burstLeftMs / 1000),
     paused: session.paused,
-    tool,
-    items: [
-      { kind: WALL, name: faction.wall.name, blurb: 'Blocks the path', cost: faction.wall.cost, color: faction.wall.color, affordable: state.player.supplies >= faction.wall.cost },
-      ...faction.towers.map((id) => {
-        const def = content.towers[id];
-        return { kind: id, name: def.name, blurb: def.blurb, cost: def.tiers[0].cost, color: def.color, affordable: state.player.supplies >= def.tiers[0].cost };
-      }),
-    ],
-    selection,
+    menu: buildMenu(),
   };
   const key = JSON.stringify(hud);
   if (key !== lastHudKey) {
@@ -345,14 +404,28 @@ export function toast(message: string): void {
 
 // ── In-game actions ─────────────────────────────────────────────────────
 
-export function selectTool(kind: string | null): void {
-  tool = tool === kind ? null : kind;
-  selected = -1;
-  if (renderer) renderer.overlay.hover = -1;
+export function closeMenu(): void {
+  menuCell = -1;
+  heldKind = null;
 }
 
-export function deselect(): void {
-  selected = -1;
+/** Builds from the contextual menu, or explains why it cannot. */
+export function build(kind: string): void {
+  if (!session || !renderer || menuCell < 0) return;
+  const error = checkPlace(session.state, kind, menuCell);
+  if (error) {
+    renderer.reject(menuCell);
+    play('deny');
+    toast(REASONS[error]);
+    return;
+  }
+  session.issue({ type: 'placeStructure', kind, cell: menuCell });
+  closeMenu();
+}
+
+/** While a build option is held, its range is previewed on the cell. */
+export function hold(kind: string | null): void {
+  heldKind = kind;
 }
 
 export function startWave(): void {
@@ -361,8 +434,14 @@ export function startWave(): void {
   session.issue({ type: 'startWave' });
 }
 
-export function togglePause(): void {
-  if (session) session.paused = !session.paused;
+export function pause(): void {
+  if (!session) return;
+  session.paused = true;
+  closeMenu();
+}
+
+export function resume(): void {
+  if (session) session.paused = false;
 }
 
 /** 1× → 2× → a five-second 3× burst that falls back to 2×. Tapping during the burst returns to 1×. */
@@ -382,24 +461,24 @@ export function cycleSpeed(): void {
 }
 
 export function upgradeSelected(): void {
-  if (session && selected >= 0) session.issue({ type: 'upgradeTower', cell: selected });
+  if (session && menuCell >= 0) session.issue({ type: 'upgradeTower', cell: menuCell });
 }
 
 export function repairSelected(): void {
-  if (session && selected >= 0) session.issue({ type: 'repairStructure', cell: selected });
+  if (session && menuCell >= 0) session.issue({ type: 'repairStructure', cell: menuCell });
 }
 
 export function sellSelected(): void {
-  if (session && selected >= 0) session.issue({ type: 'sellStructure', cell: selected });
-  selected = -1;
+  if (session && menuCell >= 0) session.issue({ type: 'sellStructure', cell: menuCell });
+  closeMenu();
 }
 
 export function cycleTargeting(): void {
-  if (!session || selected < 0) return;
-  const st = structureAt(session.state, selected);
+  if (!session || menuCell < 0) return;
+  const st = structureAt(session.state, menuCell);
   if (!st) return;
   const mode: TargetingMode = TARGETING_MODES[(TARGETING_MODES.indexOf(st.targeting) + 1) % TARGETING_MODES.length];
-  session.issue({ type: 'setTargeting', cell: selected, mode });
+  session.issue({ type: 'setTargeting', cell: menuCell, mode });
 }
 
 export function retry(): void {
@@ -415,25 +494,6 @@ export function nextLevel(): void {
 
 // ── Pointer input ───────────────────────────────────────────────────────
 
-function tryPlace(cell: number, quiet: boolean): void {
-  if (!session || !renderer || !tool || cell < 0) return;
-  const error = checkPlace(session.state, tool, cell);
-  if (error === null) {
-    session.issue({ type: 'placeStructure', kind: tool, cell });
-    return;
-  }
-  if (quiet) return;
-  renderer.reject(cell);
-  play('deny');
-  const reason = REASONS[error];
-  if (reason) toast(reason);
-}
-
-/** True when the active tool is a tower and the cell holds a wall it would replace. */
-function replacesWall(cell: number): boolean {
-  return !!session && !!tool && tool !== WALL && cell >= 0 && session.state.wallAt[cell] === 1;
-}
-
 /** Double tap on a damaged structure: repair it if it can be afforded. */
 function quickRepair(cell: number): void {
   if (!session) return;
@@ -447,63 +507,32 @@ function quickRepair(cell: number): void {
   session.issue({ type: 'repairStructure', cell });
 }
 
-function updateHover(cell: number): void {
-  if (!session || !renderer) return;
-  const o = renderer.overlay;
-  if (!tool || cell < 0 || (structureAt(session.state, cell) && !replacesWall(cell))) {
-    o.hover = -1;
+/** A tap on the board opens the contextual menu for that cell, or closes the open one. */
+function onPointerDown(e: PointerEvent): void {
+  if (!session || !renderer || session.state.outcome !== 'playing' || session.paused) return;
+  unlockAudio();
+  const { state } = session;
+  const cell = renderer.cellAt(e.clientX, e.clientY);
+  if (cell < 0 || state.cells[cell] !== Cell.Ground) {
+    closeMenu();
     return;
   }
-  o.hover = cell;
-  o.hoverValid = checkPlace(session.state, tool, cell) === null;
-  o.hoverRange = tool === WALL || structureCost(session.state, tool) === undefined ? 0 : content.towers[tool].tiers[0].range;
-}
-
-function onPointerDown(e: PointerEvent): void {
-  if (!session || !renderer || session.state.outcome !== 'playing') return;
-  unlockAudio();
-  const cell = renderer.cellAt(e.clientX, e.clientY);
-  pointerDown = true;
-  renderer.canvas.setPointerCapture?.(e.pointerId);
-  const existing = cell >= 0 ? structureAt(session.state, cell) : undefined;
-  if (existing && !replacesWall(cell)) {
+  const existing = structureAt(state, cell);
+  if (existing) {
     const now = performance.now();
-    if (existing.cell === lastTapCell && now - lastTapAt < DOUBLE_TAP_MS) {
-      quickRepair(existing.cell);
+    if (cell === lastTapCell && now - lastTapAt < DOUBLE_TAP_MS) {
+      quickRepair(cell);
       lastTapAt = 0;
     } else {
-      lastTapCell = existing.cell;
+      lastTapCell = cell;
       lastTapAt = now;
     }
-    selected = existing.cell;
-    pointerDown = false;
-    renderer.overlay.hover = -1;
+  } else if (cell === menuCell) {
+    // Tapping the same free cell again dismisses its menu.
+    closeMenu();
     return;
   }
-  selected = -1;
-  if (!tool) return;
-  // Walls paint immediately so a drag lays a line; towers wait for release so the
-  // range preview can be dragged into position first.
-  if (tool === WALL) tryPlace(cell, false);
-  updateHover(cell);
-}
-
-function onPointerMove(e: PointerEvent): void {
-  if (!session || !renderer || !tool) return;
-  if (e.pointerType !== 'mouse' && !pointerDown) return;
-  const cell = renderer.cellAt(e.clientX, e.clientY);
-  if (pointerDown && tool === WALL && cell !== renderer.overlay.hover) tryPlace(cell, true);
-  updateHover(cell);
-}
-
-function onPointerUp(e: PointerEvent): void {
-  if (!session || !renderer) return;
-  if (pointerDown && tool && tool !== WALL) tryPlace(renderer.cellAt(e.clientX, e.clientY), false);
-  pointerDown = false;
-  if (e.pointerType !== 'mouse') renderer.overlay.hover = -1;
-}
-
-function onPointerLeave(): void {
-  pointerDown = false;
-  if (renderer) renderer.overlay.hover = -1;
+  heldKind = null;
+  menuCell = cell;
+  menuOnStructure = !!existing;
 }

@@ -6,7 +6,7 @@ import { LIMITS } from './verify';
 // Configuration is environment variables only, with working defaults.
 const env = process.env;
 const PORT = Number(env.PORT ?? 8787);
-const DB_PATH = env.DB_PATH ?? './legend-td.sqlite';
+const DB_PATH = env.DB_PATH ?? './aether-nations.sqlite';
 const CORS_ORIGIN = env.CORS_ORIGIN ?? '*';
 /** Set when running behind a reverse proxy that sets X-Forwarded-For. */
 const TRUST_PROXY = env.TRUST_PROXY === '1';
