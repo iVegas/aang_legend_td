@@ -208,6 +208,12 @@ rather than pulls.
   priority (first / strongest / closest). A bottom panel was chosen over a radial menu so
   the buttons never cover the board or fall off a screen edge.
 - Towers are placed on release, so the range preview can be dragged into position first.
+- A tower can be built directly on one of your walls: the wall is converted in place for
+  the tower's price, and what the wall cost stays invested (it comes back on sale).
+- Double-tap a damaged structure to repair it without opening its panel.
+- The wave indicator in the top bar is also the start button, so it stays reachable
+  while a structure's panel is open. The speed button cycles 1× → 2× → a five-second
+  3× burst that drops back to 2×.
 - Two-finger pan/pinch only on levels larger than the screen.
 - Everything reachable with one thumb; primary actions in the bottom third of the screen.
 

@@ -6,7 +6,7 @@ export * from './types';
 
 /** Bump whenever a change to data would alter the outcome of a recorded match. */
 export const content: ContentPack = {
-  version: '0.2.0',
+  version: '0.3.0',
   factions,
   towers,
   units,

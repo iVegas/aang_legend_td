@@ -1,7 +1,7 @@
 // Rules shared by the client and the verification server.
 
 /** Fastest game speed the client offers; the server uses it to bound how quickly a match can be played. */
-export const MAX_SPEED = 2;
+export const MAX_SPEED = 3;
 export const TICK_MS = 50;
 
 export function starsFor(baseHp: number, baseMaxHp: number): number {

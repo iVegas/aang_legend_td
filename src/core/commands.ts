@@ -59,7 +59,12 @@ export function checkPlace(state: GameState, kind: string, cell: number): PlaceE
   const cost = structureCost(state, kind);
   if (cost === undefined) return 'unknown';
   if (state.cells[cell] !== Cell.Ground) return 'terrain';
-  if (state.structAt[cell] !== 0) return 'occupied';
+  if (state.structAt[cell] !== 0) {
+    // A tower may be built in place of a wall: the cell is already blocked, so no
+    // path or unit checks apply.
+    if (kind === WALL || !state.wallAt[cell]) return 'occupied';
+    return state.player.supplies < cost ? 'funds' : null;
+  }
   for (const u of state.units) {
     if (!u.flying && (u.cell === cell || u.next === cell)) return 'unit';
   }
@@ -87,6 +92,18 @@ export function applyCommand(state: GameState, cmd: Command): boolean {
     case 'placeStructure': {
       if (checkPlace(state, cmd.kind, cmd.cell) !== null) return false;
       const cost = structureCost(state, cmd.kind)!;
+      const wall = structureAt(state, cmd.cell);
+      if (wall) {
+        // Convert the wall in place; what was paid for it stays invested in the tower.
+        wall.kind = cmd.kind;
+        wall.spent += cost;
+        wall.hp = wall.maxHp = structureMaxHp(state, cmd.kind, 0);
+        state.wallAt[cmd.cell] = 0;
+        state.player.supplies -= cost;
+        state.gridVersion++;
+        state.events.push({ type: 'placed', cell: cmd.cell });
+        return true;
+      }
       const id = state.nextId++;
       const hp = structureMaxHp(state, cmd.kind, 0);
       state.structures.push({

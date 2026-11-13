@@ -118,3 +118,34 @@ describe('phase 2: destructible structures', () => {
     expect(burned).toBe(true);
   });
 });
+
+describe('building a tower in place of a wall', () => {
+  it('converts the wall, keeps its cost invested and needs no path check', () => {
+    const s = setup('water');
+    // A full wall row with one gap: any new blocker elsewhere on the row would seal the path.
+    for (let x = 0; x < COLS - 1; x++) place(s, WALL, at(x, 6));
+    const before = s.player.supplies;
+    const id = structureAt(s, at(3, 6))!.id;
+    const version = s.gridVersion;
+    place(s, 'water_whip', at(3, 6));
+    const tower = structureAt(s, at(3, 6))!;
+    expect(tower.id).toBe(id);
+    expect(tower.kind).toBe('water_whip');
+    expect(tower.spent).toBe(5 + 30);
+    expect(tower.hp).toBe(160);
+    expect(s.wallAt[at(3, 6)]).toBe(0);
+    expect(s.player.supplies).toBe(before - 30);
+    expect(s.gridVersion).toBeGreaterThan(version);
+  });
+
+  it('still refuses a wall on a wall, a tower on a tower, and a tower it cannot afford', () => {
+    const s = setup('water');
+    place(s, WALL, at(3, 6));
+    expect(applyCommand(s, { type: 'placeStructure', kind: WALL, cell: at(3, 6) })).toBe(false);
+    place(s, 'water_whip', at(3, 6));
+    expect(applyCommand(s, { type: 'placeStructure', kind: 'frost_spire', cell: at(3, 6) })).toBe(false);
+    place(s, WALL, at(4, 6));
+    s.player.supplies = 10;
+    expect(applyCommand(s, { type: 'placeStructure', kind: 'water_whip', cell: at(4, 6) })).toBe(false);
+  });
+});

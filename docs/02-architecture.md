@@ -89,7 +89,7 @@ and `content` without the DOM library, and ESLint bans the imports and the two c
   and interpolates between the last two sim states.
 - The game loop accumulates real time and runs zero or more ticks per frame, capped to
   avoid a spiral of death after the tab was backgrounded.
-- Game speed (1×/2×, pause) changes ticks per real second, never the tick length.
+- Game speed (1×, 2×, a five-second 3× burst, pause) changes ticks per real second, never the tick length.
 
 ### Determinism rules
 

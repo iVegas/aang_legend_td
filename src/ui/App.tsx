@@ -120,10 +120,15 @@ function Game({ hud, verify }: { hud: Hud; verify: VerifyStatus }) {
           <span class="stat-icon coin">●</span>
           <span>{hud.supplies}</span>
         </div>
-        <div class="stat wave" title="Wave">
-          Wave {Math.max(1, hud.wave)}/{hud.waves}
-        </div>
-        <button class="icon-btn" onClick={game.toggleSpeed} aria-label="Toggle speed">{hud.speed}×</button>
+        <button class="wave-btn" disabled={hud.waveActive || over} onClick={game.startWave} aria-label="Start wave">
+          <strong>Wave {Math.min(hud.waves, hud.waveActive ? hud.wave : hud.wave + 1)}/{hud.waves}</strong>
+          <small>
+            {hud.waveActive || over ? 'in progress' : hud.countdown > 0 ? `▶ ${hud.countdown}s · +${hud.countdown}●` : '▶ Start'}
+          </small>
+        </button>
+        <button class={`icon-btn speed${hud.burst > 0 ? ' burst' : ''}`} onClick={game.cycleSpeed} aria-label="Change speed">
+          {hud.speed}×{hud.burst > 0 && <small>{hud.burst}s</small>}
+        </button>
         <button class="icon-btn" onClick={game.togglePause} aria-label={hud.paused ? 'Resume' : 'Pause'}>
           {hud.paused ? '▶' : 'Ⅱ'}
         </button>
@@ -145,23 +150,27 @@ function Game({ hud, verify }: { hud: Hud; verify: VerifyStatus }) {
               </small>
             </div>
             <div class="panel-actions">
-              {!hud.selection.isWall && (
-                <button class="act" onClick={game.cycleTargeting}>
-                  <small>Target</small>
-                  {hud.selection.targeting}
-                </button>
-              )}
-              {!hud.selection.isWall && (
-                <button class="act primary" disabled={!hud.selection.canUpgrade} onClick={game.upgradeSelected}>
-                  <small>Upgrade</small>
-                  {hud.selection.upgradeCost === null ? 'Max' : `● ${hud.selection.upgradeCost}`}
-                </button>
-              )}
-              {hud.selection.repairCost > 0 && (
-                <button class="act primary" disabled={!hud.selection.canRepair} onClick={game.repairSelected}>
-                  <small>Repair</small>● {hud.selection.repairCost}
-                </button>
-              )}
+              {/* Every slot is always rendered so no button moves or resizes between selections. */}
+              <button class={`act${hud.selection.isWall ? ' ghost' : ''}`} disabled={hud.selection.isWall} onClick={game.cycleTargeting}>
+                <small>Target</small>
+                {hud.selection.targeting}
+              </button>
+              <button
+                class={`act primary${hud.selection.isWall ? ' ghost' : ''}`}
+                disabled={hud.selection.isWall || !hud.selection.canUpgrade}
+                onClick={game.upgradeSelected}
+              >
+                <small>Upgrade</small>
+                {hud.selection.upgradeCost === null ? 'Max' : `● ${hud.selection.upgradeCost}`}
+              </button>
+              <button
+                class="act primary"
+                disabled={hud.selection.repairCost === 0 || !hud.selection.canRepair}
+                onClick={game.repairSelected}
+              >
+                <small>Repair</small>
+                {hud.selection.repairCost === 0 ? '—' : `● ${hud.selection.repairCost}`}
+              </button>
               <button class="act" onClick={game.sellSelected}>
                 <small>Sell</small>● {hud.selection.sellValue}
               </button>
@@ -183,16 +192,6 @@ function Game({ hud, verify }: { hud: Hud; verify: VerifyStatus }) {
                 <span class="tool-cost">● {item.cost}</span>
               </button>
             ))}
-            <button class="go" disabled={hud.waveActive || over} onClick={game.startWave}>
-              {hud.waveActive ? (
-                <small>Wave in progress</small>
-              ) : (
-                <>
-                  <strong>{hud.wave === 0 ? 'Start' : 'Next wave'}</strong>
-                  {hud.countdown > 0 && <small>{hud.countdown}s · +{hud.countdown}●</small>}
-                </>
-              )}
-            </button>
           </div>
         )}
         {hud.tool && !hud.selection && (

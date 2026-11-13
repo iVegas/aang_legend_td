@@ -43,6 +43,8 @@ export interface Hud {
   stars: number;
   hasNext: boolean;
   speed: number;
+  /** Seconds of 3× burst remaining, 0 when not bursting. */
+  burst: number;
   paused: boolean;
   tool: string | null;
   items: BuildItem[];

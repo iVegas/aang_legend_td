@@ -111,7 +111,7 @@ What keeps the cost bounded:
 - **Cheapest checks first.** Shape → attempt lookup → expiry → time check → signature →
   log validation → replay. A bad request stops before the simulation runs.
 - **Time gate.** A result for N ticks is refused unless at least N ticks' worth of real
-  time (at 2× speed) has passed since the seed was issued. Nobody can make the server
+  time (at the 3× top speed) has passed since the seed was issued. Nobody can make the server
   simulate a minute of game without waiting half a minute first.
 - **One result per attempt**, rate-limited attempts, and hard caps: 60 game-minutes,
   6000 commands, 384 kB body.

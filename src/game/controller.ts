@@ -38,6 +38,15 @@ let toastTimer = 0;
 let pointerDown = false;
 let wakeLock: { release(): Promise<void> } | null = null;
 let starting = false;
+/** Speed to return to when the 3× burst runs out, and how much of it is left. */
+let baseSpeed = 1;
+let burstLeftMs = 0;
+let lastTapCell = -1;
+let lastTapAt = 0;
+
+const BURST_SPEED = 3;
+const BURST_MS = 5000;
+const DOUBLE_TAP_MS = 350;
 
 export const progressKey = (faction: FactionId, levelId: string) => `${faction}:${levelId}`;
 
@@ -145,6 +154,8 @@ function begin(s: Session): void {
   session = s;
   tool = null;
   selected = -1;
+  baseSpeed = 1;
+  burstLeftMs = 0;
   lastHudKey = '';
   setState({ screen: 'game', faction: s.faction, verify: 'none' });
   // The canvas host only gets its size once the game screen is laid out.
@@ -176,6 +187,13 @@ function loop(now: number): void {
   if (!session || !renderer) return;
   const dt = now - lastFrame;
   lastFrame = now;
+  if (burstLeftMs > 0 && !session.paused) {
+    burstLeftMs -= dt;
+    if (burstLeftMs <= 0) {
+      burstLeftMs = 0;
+      session.speed = baseSpeed;
+    }
+  }
   session.advance(dt, onSimEvent);
   if (selected >= 0 && !structureAt(session.state, selected)) selected = -1;
   renderer.overlay.selected = selected;
@@ -300,6 +318,7 @@ function publishHud(): void {
     stars: state.outcome === 'won' ? starsFor(state.player.baseHp, state.player.baseMaxHp) : 0,
     hasNext: levelIndex >= 0 && levelIndex < content.levels.length - 1,
     speed: session.speed,
+    burst: Math.ceil(burstLeftMs / 1000),
     paused: session.paused,
     tool,
     items: [
@@ -346,8 +365,20 @@ export function togglePause(): void {
   if (session) session.paused = !session.paused;
 }
 
-export function toggleSpeed(): void {
-  if (session) session.speed = session.speed === 1 ? 2 : 1;
+/** 1× → 2× → a five-second 3× burst that falls back to 2×. Tapping during the burst returns to 1×. */
+export function cycleSpeed(): void {
+  if (!session) return;
+  if (burstLeftMs > 0) {
+    burstLeftMs = 0;
+    baseSpeed = 1;
+  } else if (session.speed === 1) {
+    baseSpeed = 2;
+  } else {
+    burstLeftMs = BURST_MS;
+    session.speed = BURST_SPEED;
+    return;
+  }
+  session.speed = baseSpeed;
 }
 
 export function upgradeSelected(): void {
@@ -398,10 +429,28 @@ function tryPlace(cell: number, quiet: boolean): void {
   if (reason) toast(reason);
 }
 
+/** True when the active tool is a tower and the cell holds a wall it would replace. */
+function replacesWall(cell: number): boolean {
+  return !!session && !!tool && tool !== WALL && cell >= 0 && session.state.wallAt[cell] === 1;
+}
+
+/** Double tap on a damaged structure: repair it if it can be afforded. */
+function quickRepair(cell: number): void {
+  if (!session) return;
+  const cost = repairCost(session.state, cell);
+  if (cost === 0) return;
+  if (session.state.player.supplies < cost) {
+    play('deny');
+    toast('Not enough supplies');
+    return;
+  }
+  session.issue({ type: 'repairStructure', cell });
+}
+
 function updateHover(cell: number): void {
   if (!session || !renderer) return;
   const o = renderer.overlay;
-  if (!tool || cell < 0 || structureAt(session.state, cell)) {
+  if (!tool || cell < 0 || (structureAt(session.state, cell) && !replacesWall(cell))) {
     o.hover = -1;
     return;
   }
@@ -417,7 +466,15 @@ function onPointerDown(e: PointerEvent): void {
   pointerDown = true;
   renderer.canvas.setPointerCapture?.(e.pointerId);
   const existing = cell >= 0 ? structureAt(session.state, cell) : undefined;
-  if (existing) {
+  if (existing && !replacesWall(cell)) {
+    const now = performance.now();
+    if (existing.cell === lastTapCell && now - lastTapAt < DOUBLE_TAP_MS) {
+      quickRepair(existing.cell);
+      lastTapAt = 0;
+    } else {
+      lastTapCell = existing.cell;
+      lastTapAt = now;
+    }
     selected = existing.cell;
     pointerDown = false;
     renderer.overlay.hover = -1;
